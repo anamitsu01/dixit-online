@@ -3,9 +3,20 @@
 import { useMemo, useState } from "react";
 import Card from "./Card";
 import Hand from "./Hand";
-import type { CardId, RoomState } from "@/lib/types";
+import type { CardId, Player, RoomState, RoundResult } from "@/lib/types";
 
 type AsyncAction<T extends unknown[]> = (...args: T) => Promise<string | null>;
+
+function votersByCard(result: RoundResult, players: Player[]): Map<CardId, string[]> {
+  const m = new Map<CardId, string[]>();
+  for (const v of result.votes) {
+    const voter = players.find((p) => p.id === v.playerId);
+    const list = m.get(v.votedCardId) ?? [];
+    list.push(voter?.name ?? "?");
+    m.set(v.votedCardId, list);
+  }
+  return m;
+}
 
 export default function GameBoard({
   room,
@@ -295,15 +306,8 @@ function RevealPhase({
   const me = room.players.find((p) => p.id === viewerId);
 
   const votesByCard = useMemo(() => {
-    const m = new Map<CardId, string[]>();
-    if (!result) return m;
-    for (const v of result.votes) {
-      const voter = room.players.find((p) => p.id === v.playerId);
-      const list = m.get(v.votedCardId) ?? [];
-      list.push(voter?.name ?? "?");
-      m.set(v.votedCardId, list);
-    }
-    return m;
+    if (!result) return new Map<CardId, string[]>();
+    return votersByCard(result, room.players);
   }, [result, room.players]);
 
   if (!result) return null;
@@ -363,7 +367,7 @@ function GameOver({ room, viewerId }: { room: RoomState; viewerId: string }) {
   const sorted = [...room.players].sort((a, b) => b.score - a.score);
   const winners = room.players.filter((p) => room.winnerIds.includes(p.id));
   return (
-    <div className="mx-auto max-w-xl text-center">
+    <div className="mx-auto max-w-2xl text-center">
       <h2 className="text-3xl font-black text-amber-300 mb-2">ゲーム終了!</h2>
       <p className="mb-6 text-white/70">
         {winners.map((w) => w.name).join(" と ")} の勝利! 🎉
@@ -383,6 +387,49 @@ function GameOver({ room, viewerId }: { room: RoomState; viewerId: string }) {
           </li>
         ))}
       </ul>
+
+      {room.history.length > 0 && (
+        <div className="mt-10 text-left">
+          <h3 className="mb-3 text-center text-lg font-bold text-white/80">ラウンドの振り返り</h3>
+          <div className="space-y-2">
+            {room.history.map((result) => (
+              <RoundHistoryEntry key={result.round} result={result} players={room.players} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function RoundHistoryEntry({ result, players }: { result: RoundResult; players: Player[] }) {
+  const voters = votersByCard(result, players);
+  const storyteller = players.find((p) => p.id === result.storytellerId);
+  return (
+    <details className="rounded-lg border border-white/10 bg-white/5 px-4 py-3">
+      <summary className="cursor-pointer select-none text-sm text-white/80">
+        ラウンド{result.round} ・ 語り手: {storyteller?.name ?? "?"} ・ お題「{result.clue}」
+      </summary>
+      <div className="mt-4 flex flex-wrap justify-center gap-4">
+        {result.revealed.map((r) => {
+          const owner = players.find((p) => p.id === r.ownerId);
+          const isStorytellerCard = r.cardId === result.storytellerCardId;
+          const cardVoters = voters.get(r.cardId) ?? [];
+          const delta = result.scoreDeltas[r.ownerId] ?? 0;
+          return (
+            <div key={r.cardId} className="flex flex-col items-center gap-1">
+              <Card cardId={r.cardId} size="sm" />
+              <span className={`text-xs ${isStorytellerCard ? "text-amber-300 font-semibold" : "text-white/70"}`}>
+                {owner?.name ?? "?"} {isStorytellerCard ? "(語り手)" : ""}
+              </span>
+              <span className="text-[11px] text-white/40">
+                投票: {cardVoters.length > 0 ? cardVoters.join(", ") : "なし"}
+              </span>
+              <span className="text-[11px] font-mono text-emerald-300">+{delta}</span>
+            </div>
+          );
+        })}
+      </div>
+    </details>
   );
 }

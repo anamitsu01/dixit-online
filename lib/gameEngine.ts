@@ -53,6 +53,7 @@ export function createRoom(hostId: string, hostName: string): RoomState {
     votes: [],
     revealOrder: [],
     lastRoundResult: null,
+    history: [],
     winnerIds: [],
     maxScore: WINNING_SCORE,
     handSize: HAND_SIZE,
@@ -127,6 +128,7 @@ export function startGame(room: RoomState, requesterId: string): RoomState {
     votes: [],
     revealOrder: [],
     lastRoundResult: null,
+    history: [],
     winnerIds: [],
   };
 }
@@ -289,6 +291,7 @@ function scoreRound(room: RoomState): RoomState {
     players,
     phase: "reveal",
     lastRoundResult: result,
+    history: [...room.history, result],
   };
 }
 

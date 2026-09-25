@@ -55,6 +55,7 @@ export interface RoomState {
   votes: Vote[];
   revealOrder: CardId[];
   lastRoundResult: RoundResult | null;
+  history: RoundResult[];
   winnerIds: string[];
   maxScore: number;
   handSize: number;
