@@ -310,6 +310,17 @@ function RevealPhase({
     return votersByCard(result, room.players);
   }, [result, room.players]);
 
+  const { correctNames, incorrectNames } = useMemo(() => {
+    if (!result) return { correctNames: [] as string[], incorrectNames: [] as string[] };
+    const nameOf = (playerId: string) => room.players.find((p) => p.id === playerId)?.name ?? "?";
+    const correct: string[] = [];
+    const incorrect: string[] = [];
+    for (const v of result.votes) {
+      (v.votedCardId === result.storytellerCardId ? correct : incorrect).push(nameOf(v.playerId));
+    }
+    return { correctNames: correct, incorrectNames: incorrect };
+  }, [result, room.players]);
+
   if (!result) return null;
 
   async function handleNext() {
@@ -321,25 +332,61 @@ function RevealPhase({
 
   return (
     <div className="w-full text-center">
-      <p className="text-lg mb-1">
-        {result.everyoneOrNoOneCorrect
-          ? "全員正解 or 全員不正解 — 語り手は0点!"
-          : "正解者と語り手に3点!"}
-      </p>
-      <div className="mt-4 flex flex-wrap justify-center gap-4">
+      <h2 className="text-2xl font-black text-amber-300 mb-2">結果発表</h2>
+
+      <div className="mx-auto mb-6 max-w-md rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm">
+        {correctNames.length > 0 && (
+          <p className="text-emerald-300">
+            正解 ✓ {correctNames.join("、")}
+          </p>
+        )}
+        {incorrectNames.length > 0 && (
+          <p className="text-white/50">不正解 ✗ {incorrectNames.join("、")}</p>
+        )}
+        <p className="mt-2 text-white/60">
+          {result.everyoneOrNoOneCorrect
+            ? "全員正解 or 全員不正解 → 語り手は0点、他の全員に+2点"
+            : "正解者がいたので語り手と正解者に+3点"}
+        </p>
+      </div>
+
+      <div className="flex flex-wrap justify-center gap-4">
         {result.revealed.map((r) => {
           const owner = room.players.find((p) => p.id === r.ownerId);
           const isStorytellerCard = r.cardId === result.storytellerCardId;
           const voters = votesByCard.get(r.cardId) ?? [];
           const delta = result.scoreDeltas[r.ownerId] ?? 0;
           return (
-            <div key={r.cardId} className="flex flex-col items-center gap-1">
-              <Card cardId={r.cardId} size="md" />
+            <div
+              key={r.cardId}
+              className={`flex flex-col items-center gap-2 rounded-xl p-3 ${
+                isStorytellerCard ? "bg-amber-300/10 ring-1 ring-amber-300/40" : "bg-white/[0.03]"
+              }`}
+            >
+              <Card cardId={r.cardId} size="md" selected={isStorytellerCard} />
               <span className={`text-sm ${isStorytellerCard ? "text-amber-300 font-semibold" : "text-white/70"}`}>
                 {owner?.name ?? "?"} {isStorytellerCard ? "(語り手)" : ""}
               </span>
-              <span className="text-xs text-white/40">投票: {voters.length > 0 ? voters.join(", ") : "なし"}</span>
-              <span className="text-xs font-mono text-emerald-300">+{delta}</span>
+              <div className="flex max-w-[140px] flex-wrap justify-center gap-1">
+                {voters.length > 0 ? (
+                  voters.map((name, i) => (
+                    <span
+                      key={`${name}-${i}`}
+                      className={`rounded-full px-2 py-0.5 text-[11px] ${
+                        isStorytellerCard
+                          ? "bg-emerald-400/20 text-emerald-300"
+                          : "bg-white/10 text-white/60"
+                      }`}
+                    >
+                      {name}
+                      {isStorytellerCard ? " ✓" : ""}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-[11px] text-white/30">投票なし</span>
+                )}
+              </div>
+              <span className="text-sm font-mono font-bold text-emerald-300">+{delta}</span>
             </div>
           );
         })}
