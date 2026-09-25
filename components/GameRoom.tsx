@@ -1,19 +1,23 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { getSocket, loadIdentity, saveIdentity } from "@/lib/socketClient";
+import { useRouter } from "next/navigation";
+import { getSocket, loadIdentity, saveIdentity, clearIdentity } from "@/lib/socketClient";
 import type { RoomState, CardId } from "@/lib/types";
 import Lobby from "./Lobby";
 import GameBoard from "./GameBoard";
 import Scoreboard from "./Scoreboard";
+import ConfirmDialog from "./ConfirmDialog";
 
 type ConnState = "connecting" | "needs-name" | "in-room" | "not-found";
 
 export default function GameRoom({ code }: { code: string }) {
+  const router = useRouter();
   const [room, setRoom] = useState<RoomState | null>(null);
   const [playerId, setPlayerId] = useState<string | null>(null);
   const [state, setState] = useState<ConnState>("connecting");
   const [joinError, setJoinError] = useState<string | null>(null);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const attemptedRejoin = useRef(false);
 
   useEffect(() => {
@@ -124,6 +128,14 @@ export default function GameRoom({ code }: { code: string }) {
     });
   }, [code]);
 
+  const handleLeave = useCallback(() => {
+    const socket = getSocket();
+    clearIdentity(code);
+    socket.disconnect();
+    socket.connect();
+    router.push("/");
+  }, [code, router]);
+
   if (state === "connecting") {
     return <Centered>接続中…</Centered>;
   }
@@ -137,22 +149,43 @@ export default function GameRoom({ code }: { code: string }) {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 lg:flex-row lg:items-start">
-      <div className="flex-1">
-        {room.phase === "lobby" ? (
-          <Lobby room={room} viewerId={playerId} onStart={handleStart} />
-        ) : (
-          <GameBoard
-            room={room}
-            viewerId={playerId}
-            onSubmitClue={handleSubmitClue}
-            onSubmitCard={handleSubmitCard}
-            onSubmitVote={handleSubmitVote}
-            onNextRound={handleNextRound}
-          />
-        )}
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+      <div className="flex justify-end">
+        <button
+          onClick={() => setShowLeaveConfirm(true)}
+          className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white"
+        >
+          退出する
+        </button>
       </div>
-      <Scoreboard room={room} viewerId={playerId} />
+
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <div className="flex-1">
+          {room.phase === "lobby" ? (
+            <Lobby room={room} viewerId={playerId} onStart={handleStart} />
+          ) : (
+            <GameBoard
+              room={room}
+              viewerId={playerId}
+              onSubmitClue={handleSubmitClue}
+              onSubmitCard={handleSubmitCard}
+              onSubmitVote={handleSubmitVote}
+              onNextRound={handleNextRound}
+            />
+          )}
+        </div>
+        <Scoreboard room={room} viewerId={playerId} />
+      </div>
+
+      {showLeaveConfirm && (
+        <ConfirmDialog
+          title="ゲームから退出しますか?"
+          message="退出するとこの部屋から抜け、ホーム画面に戻ります。この操作は取り消せません。"
+          confirmLabel="退出する"
+          onConfirm={handleLeave}
+          onCancel={() => setShowLeaveConfirm(false)}
+        />
+      )}
     </div>
   );
 }
