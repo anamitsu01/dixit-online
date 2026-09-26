@@ -66,4 +66,4 @@ export const MIN_PLAYERS = 3;
 export const MAX_PLAYERS = 6;
 export const HAND_SIZE = 6;
 export const WINNING_SCORE = 30;
-export const DECK_SIZE = 84;
+export const DECK_SIZE = 104;

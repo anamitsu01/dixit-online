@@ -1,6 +1,5 @@
 "use client";
 
-import { generateCardArt } from "@/lib/cardArt";
 import type { CardId } from "@/lib/types";
 
 const SIZES = {
@@ -53,84 +52,23 @@ export default function Card({
   );
 }
 
-function CardFace({ cardId, w, h }: { cardId: CardId; w: number; h: number }) {
-  const art = generateCardArt(cardId);
-  const gradId = `bg-${cardId}`;
-  return (
-    <svg viewBox={`0 0 100 140`} width={w} height={h} xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id={gradId} gradientTransform={`rotate(${art.angle} 0.5 0.5)`}>
-          <stop offset="0%" stopColor={art.bgFrom} />
-          <stop offset="55%" stopColor={art.bgMid} />
-          <stop offset="100%" stopColor={art.bgTo} />
-        </linearGradient>
-      </defs>
-      <rect width="100" height="140" fill={`url(#${gradId})`} />
-      {art.blobs.map((b, i) => (
-        <ellipse
-          key={i}
-          cx={b.cx}
-          cy={b.cy}
-          rx={b.rx}
-          ry={b.ry}
-          fill={b.color}
-          opacity={b.opacity}
-          transform={`rotate(${b.rotate} ${b.cx} ${b.cy})`}
-        />
-      ))}
-      {art.accents.map((a, i) => {
-        if (a.kind === "ring") {
-          return (
-            <circle
-              key={i}
-              cx={a.cx}
-              cy={a.cy}
-              r={a.r}
-              fill="none"
-              stroke={a.color}
-              strokeWidth={1.2}
-              opacity={a.opacity}
-            />
-          );
-        }
-        if (a.kind === "star") {
-          return (
-            <path
-              key={i}
-              d={starPath(a.cx, a.cy, a.r)}
-              fill={a.color}
-              opacity={a.opacity}
-            />
-          );
-        }
-        if (a.kind === "wave") {
-          return (
-            <path
-              key={i}
-              d={`M ${a.cx - a.r} ${a.cy} Q ${a.cx} ${a.cy - a.r} ${a.cx + a.r} ${a.cy}`}
-              stroke={a.color}
-              strokeWidth={1}
-              fill="none"
-              opacity={a.opacity}
-            />
-          );
-        }
-        return <circle key={i} cx={a.cx} cy={a.cy} r={a.r} fill={a.color} opacity={a.opacity} />;
-      })}
-      <rect x="1" y="1" width="98" height="138" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="1" rx="6" />
-    </svg>
-  );
+function cardImageSrc(cardId: CardId): string {
+  return `/cards/${String(cardId + 1).padStart(3, "0")}.webp`;
 }
 
-function starPath(cx: number, cy: number, r: number): string {
-  const points: string[] = [];
-  for (let i = 0; i < 5; i++) {
-    const outerAngle = (Math.PI / 2.5) * i - Math.PI / 2;
-    const innerAngle = outerAngle + Math.PI / 5;
-    points.push(`${cx + r * Math.cos(outerAngle)},${cy + r * Math.sin(outerAngle)}`);
-    points.push(`${cx + (r / 2.3) * Math.cos(innerAngle)},${cy + (r / 2.3) * Math.sin(innerAngle)}`);
-  }
-  return `M ${points.join(" L ")} Z`;
+function CardFace({ cardId, w, h }: { cardId: CardId; w: number; h: number }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- fixed-size local static assets, no next/image optimization needed
+    <img
+      src={cardImageSrc(cardId)}
+      alt=""
+      draggable={false}
+      loading="lazy"
+      width={w}
+      height={h}
+      className="h-full w-full object-cover"
+    />
+  );
 }
 
 function CardBack({ w, h }: { w: number; h: number }) {

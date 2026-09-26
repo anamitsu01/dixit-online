@@ -1,9 +1,11 @@
 # Dixit Online
 
 友人とオンラインで遊べる、Dixitルール準拠のストーリーテリングゲームです。
-Next.js (App Router) + Socket.io によるリアルタイム対戦。カード絵は著作権の関係で
-本物のDixitアートではなく、カードIDから決定的に生成される抽象アートのプレースホルダーを使用しています
-(`lib/cardArt.ts`)。後から実画像に差し替える場合は `components/Card.tsx` の `CardFace` を置き換えてください。
+Next.js (App Router) + Socket.io によるリアルタイム対戦。カード絵は `public/cards/` に
+`001.webp`〜`104.webp` として配置しています(著作権上、Dixit公式アートではなく
+独自に用意した画像を使用)。カードを追加・差し替える場合は `scripts/convert-cards.mjs` で
+PNGをリサイズ・WebP変換して `public/cards/` に出力し、`lib/types.ts` の `DECK_SIZE` を
+実際の枚数に合わせて更新してください。
 
 ## ローカル開発
 
@@ -20,7 +22,7 @@ Next.jsとSocket.ioを同一プロセス・同一ポートで提供します(`ne
 
 ## ゲームルール実装メモ
 
-- 3〜6人対応、手札6枚、山札84枚(`lib/types.ts`)
+- 3〜6人対応、手札6枚、山札104枚(`lib/types.ts`)
 - 得点計算・語り手交代・山札切れ/30点到達での終了は `lib/gameEngine.ts` に実装
 - 部屋の状態はサーバーのメモリ内で管理(`lib/rooms.ts`)。プロセス再起動で消えます
 
