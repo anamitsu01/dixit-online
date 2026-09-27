@@ -72,11 +72,15 @@ export default function Home() {
         <div className="flex gap-2">
           <input
             value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+            onChange={(e) => setJoinCode(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && joinRoom()}
             placeholder="部屋コード"
             maxLength={5}
-            className="flex-1 rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-center text-lg tracking-widest"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            className="flex-1 rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-center text-lg uppercase tracking-widest"
           />
           <button
             onClick={joinRoom}
