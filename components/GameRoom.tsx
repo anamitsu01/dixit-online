@@ -128,6 +128,13 @@ export default function GameRoom({ code }: { code: string }) {
     });
   }, [code]);
 
+  const handlePlayAgain = useCallback(async (): Promise<string | null> => {
+    const socket = getSocket();
+    return new Promise((resolve) => {
+      socket.emit("game:playAgain", { code }, (res) => resolve(res.ok ? null : res.error));
+    });
+  }, [code]);
+
   const handleLeave = useCallback(() => {
     const socket = getSocket();
     clearIdentity(code);
@@ -171,6 +178,7 @@ export default function GameRoom({ code }: { code: string }) {
               onSubmitCard={handleSubmitCard}
               onSubmitVote={handleSubmitVote}
               onNextRound={handleNextRound}
+              onPlayAgain={handlePlayAgain}
             />
           )}
         </div>

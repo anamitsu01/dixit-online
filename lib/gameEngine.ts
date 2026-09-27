@@ -97,18 +97,7 @@ export function removePlayer(room: RoomState, playerId: string): RoomState {
   return { ...room, players };
 }
 
-export function startGame(room: RoomState, requesterId: string): RoomState {
-  const requester = room.players.find((p) => p.id === requesterId);
-  if (!requester?.isHost) {
-    throw new GameError("ホストのみがゲームを開始できます");
-  }
-  if (room.phase !== "lobby") {
-    throw new GameError("すでにゲームが開始されています");
-  }
-  if (room.players.length < MIN_PLAYERS) {
-    throw new GameError(`最低${MIN_PLAYERS}人必要です`);
-  }
-
+function dealNewGame(room: RoomState): RoomState {
   const deck = shuffle(Array.from({ length: DECK_SIZE }, (_, i) => i));
   const players = room.players.map((p) => ({ ...p, score: 0, hand: [] as CardId[] }));
 
@@ -131,6 +120,34 @@ export function startGame(room: RoomState, requesterId: string): RoomState {
     history: [],
     winnerIds: [],
   };
+}
+
+export function startGame(room: RoomState, requesterId: string): RoomState {
+  const requester = room.players.find((p) => p.id === requesterId);
+  if (!requester?.isHost) {
+    throw new GameError("ホストのみがゲームを開始できます");
+  }
+  if (room.phase !== "lobby") {
+    throw new GameError("すでにゲームが開始されています");
+  }
+  if (room.players.length < MIN_PLAYERS) {
+    throw new GameError(`最低${MIN_PLAYERS}人必要です`);
+  }
+  return dealNewGame(room);
+}
+
+export function playAgain(room: RoomState, requesterId: string): RoomState {
+  const requester = room.players.find((p) => p.id === requesterId);
+  if (!requester?.isHost) {
+    throw new GameError("ホストのみがもう一度プレイできます");
+  }
+  if (room.phase !== "gameover") {
+    throw new GameError("ゲームがまだ終了していません");
+  }
+  if (room.players.length < MIN_PLAYERS) {
+    throw new GameError(`最低${MIN_PLAYERS}人必要です`);
+  }
+  return dealNewGame(room);
 }
 
 function currentStoryteller(room: RoomState): Player {

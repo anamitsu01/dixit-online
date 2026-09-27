@@ -25,6 +25,7 @@ export default function GameBoard({
   onSubmitCard,
   onSubmitVote,
   onNextRound,
+  onPlayAgain,
 }: {
   room: RoomState;
   viewerId: string;
@@ -32,12 +33,15 @@ export default function GameBoard({
   onSubmitCard: AsyncAction<[CardId]>;
   onSubmitVote: AsyncAction<[CardId]>;
   onNextRound: AsyncAction<[]>;
+  onPlayAgain: AsyncAction<[]>;
 }) {
   const me = room.players.find((p) => p.id === viewerId);
   const storyteller = room.players[room.storytellerIndex];
   const isStoryteller = storyteller?.id === viewerId;
 
-  if (room.phase === "gameover") return <GameOver room={room} viewerId={viewerId} />;
+  if (room.phase === "gameover") {
+    return <GameOver room={room} viewerId={viewerId} onPlayAgain={onPlayAgain} />;
+  }
 
   return (
     <div className="mx-auto max-w-3xl flex flex-col items-center gap-6">
@@ -410,9 +414,28 @@ function RevealPhase({
   );
 }
 
-function GameOver({ room, viewerId }: { room: RoomState; viewerId: string }) {
+function GameOver({
+  room,
+  viewerId,
+  onPlayAgain,
+}: {
+  room: RoomState;
+  viewerId: string;
+  onPlayAgain: AsyncAction<[]>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const sorted = [...room.players].sort((a, b) => b.score - a.score);
   const winners = room.players.filter((p) => room.winnerIds.includes(p.id));
+  const me = room.players.find((p) => p.id === viewerId);
+
+  async function handlePlayAgain() {
+    setBusy(true);
+    const err = await onPlayAgain();
+    setBusy(false);
+    setError(err);
+  }
+
   return (
     <div className="mx-auto max-w-2xl text-center">
       <h2 className="text-3xl font-black text-amber-300 mb-2">ゲーム終了!</h2>
@@ -434,6 +457,21 @@ function GameOver({ room, viewerId }: { room: RoomState; viewerId: string }) {
           </li>
         ))}
       </ul>
+
+      <div className="mt-8">
+        {me?.isHost ? (
+          <button
+            onClick={handlePlayAgain}
+            disabled={busy}
+            className="rounded-full bg-amber-400 hover:bg-amber-300 disabled:opacity-40 px-8 py-3 font-bold text-black"
+          >
+            {busy ? "準備中..." : "もう一度プレイする"}
+          </button>
+        ) : (
+          <p className="text-white/60">ホストが次のゲームを始めるのを待っています…</p>
+        )}
+        {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
+      </div>
 
       {room.history.length > 0 && (
         <div className="mt-10 text-left">

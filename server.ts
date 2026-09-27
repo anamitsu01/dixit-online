@@ -7,6 +7,7 @@ import {
   GameError,
   markConnection,
   nextRound,
+  playAgain,
   removePlayer,
   sanitizeForPlayer,
   startGame,
@@ -145,6 +146,10 @@ app.prepare().then(() => {
 
     socket.on("game:nextRound", ({ code }, cb) => {
       withRoom(code, (room) => nextRound(room, socket.data.playerId ?? socket.id), cb);
+    });
+
+    socket.on("game:playAgain", ({ code }, cb) => {
+      withRoom(code, (room) => playAgain(room, socket.data.playerId ?? socket.id), cb);
     });
 
     socket.on("disconnect", () => {

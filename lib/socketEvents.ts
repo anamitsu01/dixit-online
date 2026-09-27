@@ -10,6 +10,7 @@ export interface ClientToServerEvents {
   "game:submitCard": (payload: { code: string; cardId: CardId }, cb: (res: SocketResult<null>) => void) => void;
   "game:submitVote": (payload: { code: string; cardId: CardId }, cb: (res: SocketResult<null>) => void) => void;
   "game:nextRound": (payload: { code: string }, cb: (res: SocketResult<null>) => void) => void;
+  "game:playAgain": (payload: { code: string }, cb: (res: SocketResult<null>) => void) => void;
 }
 
 // server -> client
