@@ -79,7 +79,13 @@ export function addPlayer(room: RoomState, playerId: string, name: string): Room
     connected: true,
     isHost: false,
   };
-  return { ...room, players: [...room.players, player] };
+  const players = [...room.players, player];
+  // Safety net: a prior disconnect/removal race can leave a room with no
+  // host. Never let a lobby end up unable to start the game.
+  if (!players.some((p) => p.isHost)) {
+    players[0] = { ...players[0], isHost: true };
+  }
+  return { ...room, players };
 }
 
 export function markConnection(room: RoomState, playerId: string, connected: boolean): RoomState {

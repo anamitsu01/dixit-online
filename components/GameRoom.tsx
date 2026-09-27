@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { getSocket, loadIdentity, saveIdentity, clearIdentity } from "@/lib/socketClient";
 import type { RoomState, CardId } from "@/lib/types";
@@ -18,7 +18,6 @@ export default function GameRoom({ code }: { code: string }) {
   const [state, setState] = useState<ConnState>("connecting");
   const [joinError, setJoinError] = useState<string | null>(null);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
-  const attemptedRejoin = useRef(false);
 
   useEffect(() => {
     const socket = getSocket();
@@ -31,15 +30,15 @@ export default function GameRoom({ code }: { code: string }) {
       setJoinError(message);
     }
 
-    socket.on("room:update", onUpdate);
-    socket.on("room:error", onError);
-
+    // Re-associates this socket with our stored player identity. Runs on
+    // every "connect" event, not just the first: mobile browsers routinely
+    // drop the WebSocket when a tab is backgrounded (e.g. switching apps to
+    // share the room code), and each reconnect gets a new socket.id that the
+    // server has no way to link back to our player without this re-announce.
     function tryRejoin() {
-      if (attemptedRejoin.current) return;
-      attemptedRejoin.current = true;
       const identity = loadIdentity(code);
       if (!identity) {
-        setState("needs-name");
+        setState((prev) => (prev === "in-room" ? prev : "needs-name"));
         return;
       }
       socket.emit("room:rejoin", { code, playerId: identity.playerId }, (res) => {
@@ -53,10 +52,11 @@ export default function GameRoom({ code }: { code: string }) {
       });
     }
 
+    socket.on("room:update", onUpdate);
+    socket.on("room:error", onError);
+    socket.on("connect", tryRejoin);
     if (socket.connected) {
       tryRejoin();
-    } else {
-      socket.once("connect", tryRejoin);
     }
 
     return () => {

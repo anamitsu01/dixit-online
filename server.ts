@@ -27,6 +27,7 @@ import type { RoomState } from "./lib/types";
 const dev = process.env.NODE_ENV !== "production";
 const port = Number(process.env.PORT) || 3000;
 const hostname = process.env.HOST || "0.0.0.0";
+const LOBBY_DISCONNECT_GRACE_MS = Number(process.env.LOBBY_DISCONNECT_GRACE_MS) || 20_000;
 
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
@@ -157,12 +158,22 @@ app.prepare().then(() => {
       if (!roomCode || !playerId) return;
       const room = getRoom(roomCode);
       if (!room) return;
+
+      const updated = markConnection(room, playerId, false);
+      broadcastRoom(io, updated);
+
       if (room.phase === "lobby") {
-        const updated = removePlayer(room, playerId);
-        broadcastRoom(io, updated);
-      } else {
-        const updated = markConnection(room, playerId, false);
-        broadcastRoom(io, updated);
+        // Mobile browsers routinely drop the socket for a few seconds when a
+        // tab is backgrounded (e.g. switching apps to share the room code).
+        // Give reconnects a grace period before actually dropping the seat,
+        // instead of removing them immediately and possibly losing the host.
+        setTimeout(() => {
+          const latest = getRoom(roomCode);
+          if (!latest || latest.phase !== "lobby") return;
+          const player = latest.players.find((p) => p.id === playerId);
+          if (!player || player.connected) return;
+          broadcastRoom(io, removePlayer(latest, playerId));
+        }, LOBBY_DISCONNECT_GRACE_MS);
       }
     });
   });
