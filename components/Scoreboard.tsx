@@ -1,6 +1,7 @@
 "use client";
 
 import type { RoomState } from "@/lib/types";
+import PlayerTag from "./PlayerTag";
 
 const PHASE_LABELS: Record<string, string> = {
   lobby: "ロビー",
@@ -22,7 +23,7 @@ export default function Scoreboard({ room, viewerId }: { room: RoomState; viewer
       </div>
       {storyteller && room.phase !== "lobby" && room.phase !== "gameover" && (
         <div className="mb-3 text-sm">
-          語り手: <span className="font-semibold text-amber-300">{storyteller.name}</span>
+          語り手: <PlayerTag player={storyteller} size="sm" />
         </div>
       )}
       <ul className="space-y-2">
@@ -33,13 +34,7 @@ export default function Scoreboard({ room, viewerId }: { room: RoomState; viewer
               p.id === viewerId ? "bg-amber-300/10 ring-1 ring-amber-300/40" : "bg-white/5"
             }`}
           >
-            <span className="flex items-center gap-2 truncate">
-              <span className={`h-2 w-2 rounded-full ${p.connected ? "bg-emerald-400" : "bg-white/20"}`} />
-              <span className="truncate">
-                {p.name}
-                {p.isHost ? " 👑" : ""}
-              </span>
-            </span>
+            <PlayerTag player={p} />
             <span className="font-mono font-semibold">{p.score}</span>
           </li>
         ))}

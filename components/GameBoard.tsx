@@ -3,16 +3,17 @@
 import { useMemo, useState } from "react";
 import Card from "./Card";
 import Hand from "./Hand";
+import PlayerTag from "./PlayerTag";
+import { getPlayerColor } from "@/lib/playerColors";
 import type { CardId, Player, RoomState, RoundResult } from "@/lib/types";
 
 type AsyncAction<T extends unknown[]> = (...args: T) => Promise<string | null>;
 
-function votersByCard(result: RoundResult, players: Player[]): Map<CardId, string[]> {
+function votersByCard(result: RoundResult): Map<CardId, string[]> {
   const m = new Map<CardId, string[]>();
   for (const v of result.votes) {
-    const voter = players.find((p) => p.id === v.playerId);
     const list = m.get(v.votedCardId) ?? [];
-    list.push(voter?.name ?? "?");
+    list.push(v.playerId);
     m.set(v.votedCardId, list);
   }
   return m;
@@ -218,10 +219,10 @@ function SubmitterList({ room }: { room: RoomState }) {
         <li
           key={p.id}
           className={`rounded-full px-3 py-1 text-sm ${
-            submittedIds.has(p.id) ? "bg-emerald-400/20 text-emerald-300" : "bg-white/5 text-white/40"
+            submittedIds.has(p.id) ? "bg-white/10" : "opacity-40"
           }`}
         >
-          {p.name}
+          <PlayerTag player={p} size="sm" />
         </li>
       ))}
     </ul>
@@ -311,18 +312,20 @@ function RevealPhase({
 
   const votesByCard = useMemo(() => {
     if (!result) return new Map<CardId, string[]>();
-    return votersByCard(result, room.players);
-  }, [result, room.players]);
+    return votersByCard(result);
+  }, [result]);
 
-  const { correctNames, incorrectNames } = useMemo(() => {
-    if (!result) return { correctNames: [] as string[], incorrectNames: [] as string[] };
-    const nameOf = (playerId: string) => room.players.find((p) => p.id === playerId)?.name ?? "?";
-    const correct: string[] = [];
-    const incorrect: string[] = [];
+  const { correctPlayers, incorrectPlayers } = useMemo(() => {
+    if (!result) return { correctPlayers: [] as Player[], incorrectPlayers: [] as Player[] };
+    const byId = (playerId: string) => room.players.find((p) => p.id === playerId);
+    const correct: Player[] = [];
+    const incorrect: Player[] = [];
     for (const v of result.votes) {
-      (v.votedCardId === result.storytellerCardId ? correct : incorrect).push(nameOf(v.playerId));
+      const p = byId(v.playerId);
+      if (!p) continue;
+      (v.votedCardId === result.storytellerCardId ? correct : incorrect).push(p);
     }
-    return { correctNames: correct, incorrectNames: incorrect };
+    return { correctPlayers: correct, incorrectPlayers: incorrect };
   }, [result, room.players]);
 
   if (!result) return null;
@@ -339,13 +342,21 @@ function RevealPhase({
       <h2 className="text-2xl font-black text-amber-300 mb-2">結果発表</h2>
 
       <div className="mx-auto mb-6 max-w-md rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm">
-        {correctNames.length > 0 && (
-          <p className="text-emerald-300">
-            正解 ✓ {correctNames.join("、")}
-          </p>
+        {correctPlayers.length > 0 && (
+          <div className="mb-1 flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+            <span className="text-emerald-300">正解 ✓</span>
+            {correctPlayers.map((p) => (
+              <PlayerTag key={p.id} player={p} size="sm" />
+            ))}
+          </div>
         )}
-        {incorrectNames.length > 0 && (
-          <p className="text-white/50">不正解 ✗ {incorrectNames.join("、")}</p>
+        {incorrectPlayers.length > 0 && (
+          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+            <span className="text-white/50">不正解 ✗</span>
+            {incorrectPlayers.map((p) => (
+              <PlayerTag key={p.id} player={p} size="sm" />
+            ))}
+          </div>
         )}
         <p className="mt-2 text-white/60">
           {result.everyoneOrNoOneCorrect
@@ -358,34 +369,39 @@ function RevealPhase({
         {result.revealed.map((r) => {
           const owner = room.players.find((p) => p.id === r.ownerId);
           const isStorytellerCard = r.cardId === result.storytellerCardId;
-          const voters = votesByCard.get(r.cardId) ?? [];
+          const voterIds = votesByCard.get(r.cardId) ?? [];
           const delta = result.scoreDeltas[r.ownerId] ?? 0;
+          const ownerColor = owner ? getPlayerColor(owner.colorIndex) : null;
           return (
             <div
               key={r.cardId}
-              className={`flex flex-col items-center gap-2 rounded-xl p-3 ${
-                isStorytellerCard ? "bg-amber-300/10 ring-1 ring-amber-300/40" : "bg-white/[0.03]"
-              }`}
+              className="flex flex-col items-center gap-2 rounded-xl p-3"
+              style={ownerColor ? { backgroundColor: ownerColor.bg } : undefined}
             >
-              <Card cardId={r.cardId} size="md" selected={isStorytellerCard} />
-              <span className={`text-sm ${isStorytellerCard ? "text-amber-300 font-semibold" : "text-white/70"}`}>
-                {owner?.name ?? "?"} {isStorytellerCard ? "(語り手)" : ""}
-              </span>
-              <div className="flex max-w-[140px] flex-wrap justify-center gap-1">
-                {voters.length > 0 ? (
-                  voters.map((name, i) => (
-                    <span
-                      key={`${name}-${i}`}
-                      className={`rounded-full px-2 py-0.5 text-[11px] ${
-                        isStorytellerCard
-                          ? "bg-emerald-400/20 text-emerald-300"
-                          : "bg-white/10 text-white/60"
-                      }`}
-                    >
-                      {name}
-                      {isStorytellerCard ? " ✓" : ""}
-                    </span>
-                  ))
+              <Card
+                cardId={r.cardId}
+                size="md"
+                accentColor={ownerColor?.hex}
+                badge={isStorytellerCard ? "👑" : undefined}
+              />
+              {owner && <PlayerTag player={owner} />}
+              <div className="flex max-w-[160px] flex-wrap justify-center gap-1">
+                {voterIds.length > 0 ? (
+                  voterIds.map((voterId) => {
+                    const voter = room.players.find((p) => p.id === voterId);
+                    if (!voter) return null;
+                    const vc = getPlayerColor(voter.colorIndex);
+                    return (
+                      <span
+                        key={voterId}
+                        className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                        style={{ backgroundColor: vc.bg, color: vc.hex }}
+                      >
+                        {voter.name}
+                        {isStorytellerCard ? " ✓" : ""}
+                      </span>
+                    );
+                  })
                 ) : (
                   <span className="text-[11px] text-white/30">投票なし</span>
                 )}
@@ -450,8 +466,9 @@ function GameOver({
               room.winnerIds.includes(p.id) ? "bg-amber-300/10 ring-1 ring-amber-300/40" : "bg-white/5"
             } ${p.id === viewerId ? "font-semibold" : ""}`}
           >
-            <span>
-              {i + 1}. {p.name}
+            <span className="flex items-center gap-2">
+              <span className="text-white/40">{i + 1}.</span>
+              <PlayerTag player={p} />
             </span>
             <span className="font-mono">{p.score}</span>
           </li>
@@ -488,7 +505,7 @@ function GameOver({
 }
 
 function RoundHistoryEntry({ result, players }: { result: RoundResult; players: Player[] }) {
-  const voters = votersByCard(result, players);
+  const voters = votersByCard(result);
   const storyteller = players.find((p) => p.id === result.storytellerId);
   return (
     <details className="rounded-lg border border-white/10 bg-white/5 px-4 py-3">
@@ -499,17 +516,42 @@ function RoundHistoryEntry({ result, players }: { result: RoundResult; players: 
         {result.revealed.map((r) => {
           const owner = players.find((p) => p.id === r.ownerId);
           const isStorytellerCard = r.cardId === result.storytellerCardId;
-          const cardVoters = voters.get(r.cardId) ?? [];
+          const voterIds = voters.get(r.cardId) ?? [];
           const delta = result.scoreDeltas[r.ownerId] ?? 0;
+          const ownerColor = owner ? getPlayerColor(owner.colorIndex) : null;
           return (
-            <div key={r.cardId} className="flex flex-col items-center gap-1">
-              <Card cardId={r.cardId} size="sm" />
-              <span className={`text-xs ${isStorytellerCard ? "text-amber-300 font-semibold" : "text-white/70"}`}>
-                {owner?.name ?? "?"} {isStorytellerCard ? "(語り手)" : ""}
-              </span>
-              <span className="text-[11px] text-white/40">
-                投票: {cardVoters.length > 0 ? cardVoters.join(", ") : "なし"}
-              </span>
+            <div
+              key={r.cardId}
+              className="flex flex-col items-center gap-1 rounded-lg p-2"
+              style={ownerColor ? { backgroundColor: ownerColor.bg } : undefined}
+            >
+              <Card
+                cardId={r.cardId}
+                size="sm"
+                accentColor={ownerColor?.hex}
+                badge={isStorytellerCard ? "👑" : undefined}
+              />
+              {owner && <PlayerTag player={owner} size="sm" />}
+              <div className="flex max-w-[120px] flex-wrap justify-center gap-1">
+                {voterIds.length > 0 ? (
+                  voterIds.map((voterId) => {
+                    const voter = players.find((p) => p.id === voterId);
+                    if (!voter) return null;
+                    const vc = getPlayerColor(voter.colorIndex);
+                    return (
+                      <span
+                        key={voterId}
+                        className="rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                        style={{ backgroundColor: vc.bg, color: vc.hex }}
+                      >
+                        {voter.name}
+                      </span>
+                    );
+                  })
+                ) : (
+                  <span className="text-[10px] text-white/30">投票なし</span>
+                )}
+              </div>
               <span className="text-[11px] font-mono text-emerald-300">+{delta}</span>
             </div>
           );

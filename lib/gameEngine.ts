@@ -40,6 +40,7 @@ export function createRoom(hostId: string, hostName: string): RoomState {
     score: 0,
     connected: true,
     isHost: true,
+    colorIndex: 0,
   };
   return {
     code: makeRoomCode(),
@@ -71,6 +72,7 @@ export function addPlayer(room: RoomState, playerId: string, name: string): Room
   if (room.players.length >= MAX_PLAYERS) {
     throw new GameError(`部屋の定員(${MAX_PLAYERS}人)に達しています`);
   }
+  const nextColorIndex = Math.max(...room.players.map((p) => p.colorIndex)) + 1;
   const player: Player = {
     id: playerId,
     name,
@@ -78,6 +80,7 @@ export function addPlayer(room: RoomState, playerId: string, name: string): Room
     score: 0,
     connected: true,
     isHost: false,
+    colorIndex: nextColorIndex,
   };
   const players = [...room.players, player];
   // Safety net: a prior disconnect/removal race can leave a room with no

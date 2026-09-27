@@ -18,6 +18,8 @@ interface CardProps {
   disabled?: boolean;
   faceDown?: boolean;
   badge?: string | number;
+  /** Hex color used for the border/glow, e.g. to show who owns this card. Overrides `selected`'s amber border. */
+  accentColor?: string;
   onClick?: () => void;
 }
 
@@ -28,6 +30,7 @@ export default function Card({
   disabled = false,
   faceDown = false,
   badge,
+  accentColor,
   onClick,
 }: CardProps) {
   const hidden = faceDown || cardId < 0;
@@ -40,10 +43,19 @@ export default function Card({
       className={`relative shrink-0 rounded-xl overflow-hidden border-2 transition-transform duration-150 ${
         SIZE_CLASSES[size]
       } ${
-        selected ? "border-amber-300 -translate-y-2 shadow-lg shadow-amber-300/30" : "border-white/10"
+        accentColor
+          ? "-translate-y-1"
+          : selected
+            ? "border-amber-300 -translate-y-2 shadow-lg shadow-amber-300/30"
+            : "border-white/10"
       } ${onClick && !disabled ? "cursor-pointer hover:-translate-y-1" : "cursor-default"} ${
         disabled ? "opacity-50" : ""
       }`}
+      style={
+        accentColor
+          ? { borderColor: accentColor, boxShadow: `0 0 16px -2px ${accentColor}` }
+          : undefined
+      }
     >
       {hidden ? <CardBack /> : <CardFace cardId={cardId} />}
       {badge !== undefined && (

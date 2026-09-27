@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { RoomState } from "@/lib/types";
 import { MIN_PLAYERS } from "@/lib/types";
+import PlayerTag from "./PlayerTag";
 
 export default function Lobby({
   room,
@@ -59,12 +60,8 @@ export default function Lobby({
             key={p.id}
             className="flex items-center justify-between rounded-lg bg-white/5 border border-white/10 px-4 py-3"
           >
-            <span>
-              {p.name}
-              {p.isHost ? " 👑" : ""}
-              {p.id === viewerId ? "(あなた)" : ""}
-            </span>
-            <span className={`h-2 w-2 rounded-full ${p.connected ? "bg-emerald-400" : "bg-white/20"}`} />
+            <PlayerTag player={p} />
+            {p.id === viewerId && <span className="text-sm text-white/40">(あなた)</span>}
           </li>
         ))}
       </ul>

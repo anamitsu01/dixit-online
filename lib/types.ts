@@ -15,6 +15,7 @@ export interface Player {
   score: number;
   connected: boolean;
   isHost: boolean;
+  colorIndex: number;
 }
 
 export interface Submission {
