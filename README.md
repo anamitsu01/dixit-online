@@ -20,6 +20,18 @@ Next.jsとSocket.ioを同一プロセス・同一ポートで提供します(`ne
 友人と一緒に試すには、部屋を作成してから表示される部屋コード/リンクを共有し、
 それぞれが `npm run dev` ではなく、後述のクラウドデプロイ先のURLにアクセスしてもらう必要があります。
 
+### テスト用ボット
+
+人を集めなくても動作確認できるよう、部屋に自動プレイのボットを参加させる
+スクリプトがあります(お題/カード提出/投票をランダムに自動実行、語り手の
+順番が回ってきたときのみ動作):
+
+```bash
+node scripts/bot.mjs <部屋コード> [名前] [サーバーURL]
+# 例: node scripts/bot.mjs ABCDE Bot1
+# 本番環境に対して: node scripts/bot.mjs ABCDE Bot1 https://dixit-online-production.up.railway.app
+```
+
 ## ゲームルール実装メモ
 
 - 3〜6人対応、手札6枚、山札104枚(`lib/types.ts`)
