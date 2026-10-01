@@ -466,6 +466,9 @@ function RevealPhase({
           const ownerColor = owner ? getPlayerColor(owner.colorIndex) : null;
           const emphasize = isStorytellerCard && scoreRevealed;
           const storytellerBonus = isStorytellerCard ? (result.scoreDeltas[r.ownerId] ?? 0) : 0;
+          // +1 per vote a non-storyteller's decoy card received - not tied to
+          // any one hand, so it's shown on the card itself instead.
+          const baitBonus = isStorytellerCard ? 0 : voterIds.length;
           return (
             <div
               key={r.cardId}
@@ -496,6 +499,19 @@ function RevealPhase({
                               +{storytellerBonus}
                             </span>
                           )}
+                        </>
+                      ) : scoreRevealed && baitBonus > 0 ? (
+                        <>
+                          <span
+                            className="inline-block h-2.5 w-2.5 rounded-full md:h-3 md:w-3"
+                            style={{ backgroundColor: ownerColor?.hex }}
+                          />
+                          <span
+                            className="ml-1 text-emerald-300"
+                            style={{ animation: "score-rise 450ms ease-out both" }}
+                          >
+                            +{baitBonus}
+                          </span>
                         </>
                       ) : undefined
                     }
