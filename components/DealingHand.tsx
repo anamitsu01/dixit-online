@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CARD_SIZE_CLASSES, CardBack, CardFace } from "./Card";
+import Card from "./Card";
 import type { CardId } from "@/lib/types";
 
 const DEAL_STAGGER_MS = 160;
@@ -19,7 +19,8 @@ export default function DealingHand({
   onComplete: () => void;
 }) {
   const [dealtCount, setDealtCount] = useState(0);
-  const [flipped, setFlipped] = useState(false);
+
+  const dealEndMs = Math.max(0, hand.length - 1) * DEAL_STAGGER_MS + DEAL_DURATION_MS;
 
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
@@ -28,9 +29,6 @@ export default function DealingHand({
         setTimeout(() => setDealtCount((c) => Math.max(c, i + 1)), i * DEAL_STAGGER_MS)
       );
     });
-
-    const dealEndMs = Math.max(0, hand.length - 1) * DEAL_STAGGER_MS + DEAL_DURATION_MS;
-    timers.push(setTimeout(() => setFlipped(true), dealEndMs + PAUSE_BEFORE_FLIP_MS));
 
     const flipEndMs =
       dealEndMs +
@@ -57,43 +55,13 @@ export default function DealingHand({
               transform: i < dealtCount ? "translateY(0) scale(1)" : "translateY(-36px) scale(0.75)",
             }}
           >
-            <FlipCard
+            <Card
               cardId={cardId}
-              flipped={flipped}
-              flipDelayMs={i * FLIP_STAGGER_MS}
+              size="md"
+              revealDelayMs={dealEndMs + PAUSE_BEFORE_FLIP_MS + i * FLIP_STAGGER_MS}
             />
           </div>
         ))}
-      </div>
-    </div>
-  );
-}
-
-function FlipCard({
-  cardId,
-  flipped,
-  flipDelayMs,
-}: {
-  cardId: CardId;
-  flipped: boolean;
-  flipDelayMs: number;
-}) {
-  return (
-    <div className={`${CARD_SIZE_CLASSES.md} shrink-0 [perspective:1000px]`}>
-      <div
-        className="relative h-full w-full [transform-style:preserve-3d] transition-transform ease-out"
-        style={{
-          transitionDuration: `${FLIP_DURATION_MS}ms`,
-          transitionDelay: `${flipDelayMs}ms`,
-          transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
-        }}
-      >
-        <div className="absolute inset-0 overflow-hidden rounded-xl border-2 border-white/10 [backface-visibility:hidden]">
-          <CardBack />
-        </div>
-        <div className="absolute inset-0 overflow-hidden rounded-xl border-2 border-white/10 [backface-visibility:hidden] [transform:rotateY(180deg)]">
-          <CardFace cardId={cardId} />
-        </div>
       </div>
     </div>
   );

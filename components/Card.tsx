@@ -1,6 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { CardId } from "@/lib/types";
+
+const FLIP_DURATION_MS = 550;
 
 // Card display size per breakpoint. `md` (the main gameplay size used for
 // hands, votes and reveals) doubles on tablet/desktop (>=768px); phones keep
@@ -23,6 +26,8 @@ interface CardProps {
   /** Hex color used for the border/glow, e.g. to show who owns this card. Overrides `selected`'s amber border. */
   accentColor?: string;
   onClick?: () => void;
+  /** Card starts face-down and flips to reveal its face after this delay (ms), once, on mount. Used for the deal-in / hand-replenish animations. */
+  revealDelayMs?: number;
 }
 
 export default function Card({
@@ -34,8 +39,18 @@ export default function Card({
   badge,
   accentColor,
   onClick,
+  revealDelayMs,
 }: CardProps) {
   const hidden = faceDown || cardId < 0;
+  const revealing = revealDelayMs !== undefined;
+  const [flipped, setFlipped] = useState(!revealing);
+
+  useEffect(() => {
+    if (revealDelayMs === undefined) return;
+    const t = setTimeout(() => setFlipped(true), revealDelayMs);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- play once per mount for this card instance
+  }, []);
 
   return (
     <button
@@ -59,13 +74,40 @@ export default function Card({
           : undefined
       }
     >
-      {hidden ? <CardBack /> : <CardFace cardId={cardId} />}
+      {revealing ? (
+        <FlipFace cardId={cardId} flipped={flipped} />
+      ) : hidden ? (
+        <CardBack />
+      ) : (
+        <CardFace cardId={cardId} />
+      )}
       {badge !== undefined && (
         <span className="absolute top-1 left-1 flex h-6 min-w-6 items-center justify-center rounded-full bg-black/70 px-1 text-xs font-bold text-white md:top-2 md:left-2 md:h-8 md:min-w-8 md:text-sm">
           {badge}
         </span>
       )}
     </button>
+  );
+}
+
+function FlipFace({ cardId, flipped }: { cardId: CardId; flipped: boolean }) {
+  return (
+    <div className="h-full w-full [perspective:1000px]">
+      <div
+        className="relative h-full w-full [transform-style:preserve-3d] transition-transform ease-out"
+        style={{
+          transitionDuration: `${FLIP_DURATION_MS}ms`,
+          transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
+        }}
+      >
+        <div className="absolute inset-0 [backface-visibility:hidden]">
+          <CardBack />
+        </div>
+        <div className="absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]">
+          <CardFace cardId={cardId} />
+        </div>
+      </div>
+    </div>
   );
 }
 

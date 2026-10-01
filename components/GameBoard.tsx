@@ -54,10 +54,23 @@ export default function GameBoard({
   const [dealtHand, setDealtHand] = useState<CardId[] | null>(() =>
     room.round === 1 && room.phase === "clue" ? (me?.hand ?? null) : null
   );
+  // Hand as last observed at the start of a round, used to spot the single
+  // replenishment card(s) drawn for the next round so just that card can
+  // play the same face-down-then-flip reveal as the initial deal.
+  const [lastRoundHand, setLastRoundHand] = useState<CardId[]>(() => me?.hand ?? []);
+  const [newCardIds, setNewCardIds] = useState<ReadonlySet<CardId>>(new Set());
 
   if (room.round !== prevRound) {
     setPrevRound(room.round);
-    setDealtHand(room.round === 1 ? (me?.hand ?? null) : null);
+    const currentHand = me?.hand ?? [];
+    if (room.round === 1) {
+      setDealtHand(currentHand.length ? currentHand : null);
+      setNewCardIds(new Set());
+    } else {
+      setDealtHand(null);
+      setNewCardIds(new Set(currentHand.filter((c) => !lastRoundHand.includes(c))));
+    }
+    setLastRoundHand(currentHand);
   }
   if (room.phase !== prevPhase) {
     setPrevPhase(room.phase);
@@ -91,6 +104,7 @@ export default function GameBoard({
         <CluePhase
           isStoryteller={isStoryteller}
           hand={me?.hand ?? []}
+          newCardIds={newCardIds}
           onSubmitClue={onSubmitClue}
         />
       )}
@@ -124,10 +138,12 @@ export default function GameBoard({
 function CluePhase({
   isStoryteller,
   hand,
+  newCardIds,
   onSubmitClue,
 }: {
   isStoryteller: boolean;
   hand: CardId[];
+  newCardIds?: ReadonlySet<CardId>;
   onSubmitClue: AsyncAction<[CardId, string]>;
 }) {
   const [selected, setSelected] = useState<CardId | null>(null);
@@ -139,7 +155,7 @@ function CluePhase({
     return (
       <div className="text-center">
         <p className="text-lg text-white/70 mb-6">語り手がお題を考えています…</p>
-        <Hand hand={hand} selected={null} disabled onSelect={() => {}} />
+        <Hand hand={hand} selected={null} disabled onSelect={() => {}} newCardIds={newCardIds} />
       </div>
     );
   }
@@ -160,7 +176,7 @@ function CluePhase({
       <p className="text-lg mb-4">
         あなたが語り手です。カードを1枚選び、お題(単語・フレーズ・一言)を入力してください。
       </p>
-      <Hand hand={hand} selected={selected} onSelect={setSelected} />
+      <Hand hand={hand} selected={selected} onSelect={setSelected} newCardIds={newCardIds} />
       <div className="mt-6 flex flex-col items-center gap-3">
         <input
           value={clue}
