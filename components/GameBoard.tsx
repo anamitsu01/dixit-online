@@ -347,14 +347,15 @@ function VotePhase({
   );
 }
 
-// Reveal sequence timing: ① hands point at every card simultaneously, held
-// for a beat → ② a "結果発表" cut-in flashes center-screen → ③ the
-// storyteller's card is emphasized and every card's score pops up next to
-// its pointing hand. Only then does the interactive summary/next-round view
-// settle in.
-type RevealStage = "point" | "cutin" | "score" | "done";
+// Reveal sequence timing: ① a "結果発表" cut-in flows right-to-left across
+// the screen while fading out → ② a short pause → ③ hands point at every
+// card simultaneously, held for a beat → ④ the storyteller's card is
+// emphasized and every card's score pops up next to its pointing hand. Only
+// then does the interactive summary/next-round view settle in.
+type RevealStage = "cutin" | "gap" | "point" | "score" | "done";
+const CUTIN_DURATION_MS = 900;
+const GAP_AFTER_CUTIN_MS = 700;
 const POINT_HOLD_MS = 900;
-const CUTIN_DURATION_MS = 700;
 const SCORE_HOLD_MS = 900;
 
 function RevealPhase({
@@ -368,15 +369,19 @@ function RevealPhase({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [stage, setStage] = useState<RevealStage>("point");
+  const [stage, setStage] = useState<RevealStage>("cutin");
   const result = room.lastRoundResult;
   const me = room.players.find((p) => p.id === viewerId);
 
   useEffect(() => {
+    const pointAt = CUTIN_DURATION_MS + GAP_AFTER_CUTIN_MS;
+    const scoreAt = pointAt + POINT_HOLD_MS;
+    const doneAt = scoreAt + SCORE_HOLD_MS;
     const timers = [
-      setTimeout(() => setStage("cutin"), POINT_HOLD_MS),
-      setTimeout(() => setStage("score"), POINT_HOLD_MS + CUTIN_DURATION_MS),
-      setTimeout(() => setStage("done"), POINT_HOLD_MS + CUTIN_DURATION_MS + SCORE_HOLD_MS),
+      setTimeout(() => setStage("gap"), CUTIN_DURATION_MS),
+      setTimeout(() => setStage("point"), pointAt),
+      setTimeout(() => setStage("score"), scoreAt),
+      setTimeout(() => setStage("done"), doneAt),
     ];
     return () => timers.forEach(clearTimeout);
   }, []);
@@ -408,6 +413,7 @@ function RevealPhase({
     setError(err);
   }
 
+  const pointRevealed = stage === "point" || stage === "score" || stage === "done";
   const scoreRevealed = stage === "score" || stage === "done";
   const settled = stage === "done";
 
@@ -470,7 +476,7 @@ function RevealPhase({
                     badge={isStorytellerCard ? "👑" : undefined}
                   />
                 </div>
-                {voterIds.length > 0 && (
+                {pointRevealed && voterIds.length > 0 && (
                   <div
                     className="absolute left-1/2 flex justify-center"
                     style={{ bottom: "-30px", animation: "point-in 450ms ease-out both" }}
@@ -545,10 +551,10 @@ function RevealPhase({
       )}
 
       {stage === "cutin" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/40">
           <span
-            className="text-5xl font-black tracking-widest text-amber-300 drop-shadow-[0_0_20px_rgba(252,211,77,0.6)] md:text-7xl"
-            style={{ animation: `cutin-pop ${CUTIN_DURATION_MS}ms ease-out both` }}
+            className="whitespace-nowrap text-5xl font-black tracking-widest text-amber-300 drop-shadow-[0_0_20px_rgba(252,211,77,0.6)] md:text-7xl"
+            style={{ animation: `cutin-flow ${CUTIN_DURATION_MS}ms ease-in-out both` }}
           >
             結果発表
           </span>

@@ -48,25 +48,22 @@ body {
   }
 }
 
-@keyframes cutin-pop {
+@keyframes cutin-flow {
   0% {
     opacity: 0;
-    transform: scale(0.6) rotate(-3deg);
+    transform: translateX(60vw);
   }
-  18% {
+  15% {
     opacity: 1;
-    transform: scale(1.08) rotate(1deg);
+    transform: translateX(8vw);
   }
-  28% {
-    transform: scale(1) rotate(0deg);
-  }
-  82% {
+  60% {
     opacity: 1;
-    transform: scale(1) rotate(0deg);
+    transform: translateX(-8vw);
   }
   100% {
     opacity: 0;
-    transform: scale(1.1) rotate(0deg);
+    transform: translateX(-60vw);
   }
 }
 
