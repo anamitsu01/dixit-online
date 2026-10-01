@@ -32,7 +32,7 @@ function makeRoomCode(): string {
   return code;
 }
 
-export function createRoom(hostId: string, hostName: string): RoomState {
+export function createRoom(hostId: string, hostName: string, code: string = makeRoomCode()): RoomState {
   const player: Player = {
     id: hostId,
     name: hostName,
@@ -41,9 +41,10 @@ export function createRoom(hostId: string, hostName: string): RoomState {
     connected: true,
     isHost: true,
     colorIndex: 0,
+    isBot: false,
   };
   return {
-    code: makeRoomCode(),
+    code,
     phase: "lobby",
     players: [player],
     deck: [],
@@ -81,6 +82,7 @@ export function addPlayer(room: RoomState, playerId: string, name: string): Room
     connected: true,
     isHost: false,
     colorIndex: nextColorIndex,
+    isBot: false,
   };
   const players = [...room.players, player];
   // Safety net: a prior disconnect/removal race can leave a room with no
@@ -89,6 +91,26 @@ export function addPlayer(room: RoomState, playerId: string, name: string): Room
     players[0] = { ...players[0], isHost: true };
   }
   return { ...room, players };
+}
+
+export function addBotPlayers(room: RoomState, count: number, namePrefix = "CPU"): RoomState {
+  let updated = room;
+  for (let i = 0; i < count; i++) {
+    if (updated.players.length >= MAX_PLAYERS) break;
+    const nextColorIndex = Math.max(...updated.players.map((p) => p.colorIndex)) + 1;
+    const bot: Player = {
+      id: `bot-${Math.random().toString(36).slice(2, 10)}`,
+      name: `${namePrefix}${i + 1}`,
+      hand: [],
+      score: 0,
+      connected: true,
+      isHost: false,
+      colorIndex: nextColorIndex,
+      isBot: true,
+    };
+    updated = { ...updated, players: [...updated.players, bot] };
+  }
+  return updated;
 }
 
 export function markConnection(room: RoomState, playerId: string, connected: boolean): RoomState {

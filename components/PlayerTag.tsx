@@ -7,7 +7,8 @@ export default function PlayerTag({
   player,
   size = "md",
 }: {
-  player: Pick<Player, "name" | "colorIndex" | "isHost"> & Partial<Pick<Player, "connected">>;
+  player: Pick<Player, "name" | "colorIndex" | "isHost"> &
+    Partial<Pick<Player, "connected" | "isBot">>;
   size?: "sm" | "md";
 }) {
   const color = getPlayerColor(player.colorIndex);
@@ -22,6 +23,7 @@ export default function PlayerTag({
       />
       <span className="truncate">
         {player.name}
+        {player.isBot ? " 🤖" : ""}
         {player.isHost ? " 👑" : ""}
       </span>
     </span>

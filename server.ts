@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import next from "next";
 import { Server } from "socket.io";
 import {
+  addBotPlayers,
   addPlayer,
   createRoom,
   GameError,
@@ -22,12 +23,33 @@ import type {
   SocketData,
   SocketResult,
 } from "./lib/socketEvents";
-import type { RoomState } from "./lib/types";
+import type { CardId, RoomState } from "./lib/types";
 
 const dev = process.env.NODE_ENV !== "production";
 const port = Number(process.env.PORT) || 3000;
 const hostname = process.env.HOST || "0.0.0.0";
 const LOBBY_DISCONNECT_GRACE_MS = Number(process.env.LOBBY_DISCONNECT_GRACE_MS) || 20_000;
+
+// Magic room code: joining it (re)creates a fresh lobby seeded with bots, so
+// a single tester can reach the minimum player count without juggling extra
+// browser tabs or terminal windows.
+const BOT_TEST_ROOM_CODE = "ZZZZZ";
+const BOT_COUNT = 3;
+const BOT_MIN_DELAY_MS = 600;
+const BOT_MAX_DELAY_MS = 1800;
+const BOT_CLUES = [
+  "なんとなく",
+  "思い出の一コマ",
+  "静かな午後",
+  "遠い記憶",
+  "小さな奇跡",
+  "夢の続き",
+  "あの日の空気",
+];
+
+function randomFrom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
 
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
@@ -51,6 +73,76 @@ function roomTag(code: string) {
 }
 function playerRoomTag(code: string, playerId: string) {
   return `room:${code}:player:${playerId}`;
+}
+
+type Io = Server<ClientToServerEvents, ServerToClientEvents, object, SocketData>;
+
+// Applies a mutation to a room (if it still exists), broadcasts the result,
+// and lets bots react to the new state. Shared by real player actions and
+// bot-triggered ones so both paths stay in sync.
+function applyMutation(io: Io, code: string, mutate: (room: RoomState) => RoomState): RoomState | null {
+  const room = getRoom(code);
+  if (!room) return null;
+  const updated = mutate(room);
+  broadcastRoom(io, updated);
+  scheduleBotActions(io, updated);
+  return updated;
+}
+
+function scheduleBotAction(roomCode: string, act: () => void) {
+  const delay = BOT_MIN_DELAY_MS + Math.random() * (BOT_MAX_DELAY_MS - BOT_MIN_DELAY_MS);
+  setTimeout(() => {
+    try {
+      act();
+    } catch {
+      // Stale state by the time this fired (phase moved on, already acted,
+      // room gone) - harmless, just skip.
+    }
+  }, delay);
+}
+
+// Looks at the current phase and has any bot whose turn it is act, after a
+// short human-like delay. Re-entrant: called again after every mutation
+// (including bot-triggered ones) so it naturally chains through a round.
+function scheduleBotActions(io: Io, room: RoomState) {
+  const storyteller = room.players[room.storytellerIndex];
+
+  if (room.phase === "clue" && storyteller?.isBot && storyteller.hand.length > 0) {
+    const cardId = randomFrom(storyteller.hand);
+    const clue = randomFrom(BOT_CLUES);
+    scheduleBotAction(room.code, () => {
+      applyMutation(io, room.code, (r) => submitClue(r, storyteller.id, cardId, clue));
+    });
+    return;
+  }
+
+  if (room.phase === "submit") {
+    for (const p of room.players) {
+      if (!p.isBot || p.id === storyteller?.id) continue;
+      if (room.submissions.some((s) => s.playerId === p.id) || p.hand.length === 0) continue;
+      const cardId = randomFrom(p.hand);
+      scheduleBotAction(room.code, () => {
+        applyMutation(io, room.code, (r) => submitCard(r, p.id, cardId));
+      });
+    }
+    return;
+  }
+
+  if (room.phase === "vote") {
+    for (const p of room.players) {
+      if (!p.isBot || p.id === storyteller?.id) continue;
+      if (room.votes.some((v) => v.playerId === p.id)) continue;
+      const mySubmission = room.submissions.find((s) => s.playerId === p.id);
+      const options = room.revealOrder.filter((cardId) => cardId !== mySubmission?.cardId);
+      if (options.length === 0) continue;
+      const cardId: CardId = randomFrom(options);
+      scheduleBotAction(room.code, () => {
+        applyMutation(io, room.code, (r) => submitVote(r, p.id, cardId));
+      });
+    }
+  }
+
+  // "reveal" / "gameover": pacing stays in the (human) host's hands.
 }
 
 app.prepare().then(() => {
@@ -80,9 +172,21 @@ app.prepare().then(() => {
     socket.on("room:join", ({ code, name }, cb) => {
       try {
         const trimmed = (name ?? "").trim().slice(0, 24) || "プレイヤー";
-        const room = getRoom(code);
-        if (!room) throw new GameError("部屋が見つかりません");
-        const updated = addPlayer(room, socket.id, trimmed);
+        const normalizedCode = code.trim().toUpperCase();
+        let room = getRoom(normalizedCode);
+
+        let updated: RoomState;
+        if (normalizedCode === BOT_TEST_ROOM_CODE && (!room || room.phase !== "lobby")) {
+          // Magic test room: always (re)start as a fresh lobby with this
+          // player as host plus bots, so the minimum player count is met
+          // without recruiting real people.
+          room = createRoom(socket.id, trimmed, BOT_TEST_ROOM_CODE);
+          updated = addBotPlayers(room, BOT_COUNT);
+        } else {
+          if (!room) throw new GameError("部屋が見つかりません");
+          updated = addPlayer(room, socket.id, trimmed);
+        }
+
         socket.data.playerId = socket.id;
         socket.data.roomCode = updated.code;
         socket.join(roomTag(updated.code));
@@ -119,10 +223,8 @@ app.prepare().then(() => {
       cb: (res: SocketResult<null>) => void
     ) {
       try {
-        const room = getRoom(code);
-        if (!room) throw new GameError("部屋が見つかりません");
-        const updated = mutate(room);
-        broadcastRoom(io, updated);
+        const updated = applyMutation(io, code, mutate);
+        if (!updated) throw new GameError("部屋が見つかりません");
         cb(ok(null));
       } catch (e) {
         cb(fail(e instanceof Error ? e.message : "不明なエラー"));

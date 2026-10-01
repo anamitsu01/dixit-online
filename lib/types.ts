@@ -16,6 +16,7 @@ export interface Player {
   connected: boolean;
   isHost: boolean;
   colorIndex: number;
+  isBot: boolean;
 }
 
 export interface Submission {
