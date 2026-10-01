@@ -530,7 +530,10 @@ function RevealPhase({
                       const compact = voterIds.length > 1;
                       return (
                         <span key={voterId} className="flex items-center">
-                          <PointingHand color={vc.hex} className={compact ? "w-7 md:w-10" : "w-12 md:w-16"} />
+                          <PointingHand
+                            color={vc.hex}
+                            className={`opacity-80 ${compact ? "w-7 md:w-10" : "w-12 md:w-16"}`}
+                          />
                           {scoreRevealed && bonus > 0 && (
                             <span
                               className={`font-mono font-black text-emerald-300 drop-shadow ${
@@ -547,7 +550,11 @@ function RevealPhase({
                   </div>
                 )}
               </div>
-              {owner && <PlayerTag player={owner} />}
+              {owner && (
+                <div className="relative z-10 rounded-full bg-[#0b0714]/70 px-2 py-0.5">
+                  <PlayerTag player={owner} />
+                </div>
+              )}
               {settled && (
                 <div className="flex max-w-[160px] flex-wrap justify-center gap-1">
                   {voterIds.length > 0 ? (
