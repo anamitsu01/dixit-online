@@ -470,12 +470,24 @@ function RevealPhase({
                     badge={isStorytellerCard ? "👑" : undefined}
                   />
                 </div>
-                {ownerColor && (
-                  <PointingHand
-                    color={ownerColor.hex}
-                    className="absolute left-1/2 w-12 md:w-16"
+                {voterIds.length > 0 && (
+                  <div
+                    className="absolute left-1/2 flex justify-center"
                     style={{ bottom: "-30px", animation: "point-in 450ms ease-out both" }}
-                  />
+                  >
+                    {voterIds.map((voterId) => {
+                      const voter = room.players.find((p) => p.id === voterId);
+                      if (!voter) return null;
+                      const vc = getPlayerColor(voter.colorIndex);
+                      return (
+                        <PointingHand
+                          key={voterId}
+                          color={vc.hex}
+                          className={voterIds.length > 1 ? "w-9 md:w-12 -mx-1.5" : "w-12 md:w-16"}
+                        />
+                      );
+                    })}
+                  </div>
                 )}
                 {scoreRevealed && (
                   <span
