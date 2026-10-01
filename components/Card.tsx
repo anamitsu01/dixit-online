@@ -5,11 +5,13 @@ import type { CardId } from "@/lib/types";
 // Card display size per breakpoint. `md` (the main gameplay size used for
 // hands, votes and reveals) doubles on tablet/desktop (>=768px); phones keep
 // the compact size. `sm`/`lg` are used in denser, secondary UI and stay fixed.
-const SIZE_CLASSES = {
+export const CARD_SIZE_CLASSES = {
   sm: "w-16 h-[90px]",
   md: "w-[100px] h-[140px] md:w-[200px] md:h-[280px]",
   lg: "w-40 h-[224px]",
 } as const;
+const SIZE_CLASSES = CARD_SIZE_CLASSES;
+export type CardSize = keyof typeof CARD_SIZE_CLASSES;
 
 interface CardProps {
   cardId: CardId;
@@ -67,11 +69,11 @@ export default function Card({
   );
 }
 
-function cardImageSrc(cardId: CardId): string {
+export function cardImageSrc(cardId: CardId): string {
   return `/cards/${String(cardId + 1).padStart(3, "0")}.webp`;
 }
 
-function CardFace({ cardId }: { cardId: CardId }) {
+export function CardFace({ cardId }: { cardId: CardId }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element -- fixed-size local static assets, no next/image optimization needed
     <img
@@ -84,7 +86,7 @@ function CardFace({ cardId }: { cardId: CardId }) {
   );
 }
 
-function CardBack() {
+export function CardBack() {
   return (
     <svg viewBox="0 0 100 140" className="h-full w-full" xmlns="http://www.w3.org/2000/svg">
       <defs>

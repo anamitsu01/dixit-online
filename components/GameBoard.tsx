@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Card from "./Card";
 import Hand from "./Hand";
 import PlayerTag from "./PlayerTag";
+import DealingHand from "./DealingHand";
 import { getPlayerColor } from "@/lib/playerColors";
 import type { CardId, Player, RoomState, RoundResult } from "@/lib/types";
 
@@ -40,9 +41,38 @@ export default function GameBoard({
   const storyteller = room.players[room.storytellerIndex];
   const isStoryteller = storyteller?.id === viewerId;
 
+  // A new game (first start, or "play again") always resets to round 1 with
+  // a freshly dealt hand. Snapshot that hand once per such transition and
+  // play the dealing animation for it. Adjusted during render (React's
+  // documented pattern for resetting state on a prop change) rather than in
+  // an effect, since it must happen before this render commits.
+  const [prevRound, setPrevRound] = useState(room.round);
+  const [prevPhase, setPrevPhase] = useState(room.phase);
+  // GameBoard can mount for the first time already sitting at round 1 /
+  // phase "clue" (lobby -> clue is a fresh mount), so the deal must also be
+  // detected from the initial state, not only from a later change.
+  const [dealtHand, setDealtHand] = useState<CardId[] | null>(() =>
+    room.round === 1 && room.phase === "clue" ? (me?.hand ?? null) : null
+  );
+
+  if (room.round !== prevRound) {
+    setPrevRound(room.round);
+    setDealtHand(room.round === 1 ? (me?.hand ?? null) : null);
+  }
+  if (room.phase !== prevPhase) {
+    setPrevPhase(room.phase);
+    // If the round moves on before this client's local animation finished
+    // (e.g. a slow reconnect), don't block them behind a stale animation.
+    if (room.phase !== "clue" && dealtHand !== null) {
+      setDealtHand(null);
+    }
+  }
+
   if (room.phase === "gameover") {
     return <GameOver room={room} viewerId={viewerId} onPlayAgain={onPlayAgain} />;
   }
+
+  const showDealing = room.phase === "clue" && dealtHand !== null;
 
   return (
     <div className="mx-auto max-w-3xl flex flex-col items-center gap-6">
@@ -53,7 +83,11 @@ export default function GameBoard({
         </div>
       )}
 
-      {room.phase === "clue" && (
+      {showDealing && dealtHand && (
+        <DealingHand hand={dealtHand} onComplete={() => setDealtHand(null)} />
+      )}
+
+      {room.phase === "clue" && !showDealing && (
         <CluePhase
           isStoryteller={isStoryteller}
           hand={me?.hand ?? []}
