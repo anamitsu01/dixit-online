@@ -22,7 +22,7 @@ interface CardProps {
   selected?: boolean;
   disabled?: boolean;
   faceDown?: boolean;
-  badge?: string | number;
+  badge?: React.ReactNode;
   /** Hex color used for the border/glow, e.g. to show who owns this card. Overrides `selected`'s amber border. */
   accentColor?: string;
   onClick?: () => void;

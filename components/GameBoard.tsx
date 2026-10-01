@@ -21,6 +21,17 @@ function votersByCard(result: RoundResult): Map<CardId, string[]> {
   return m;
 }
 
+// Points a voter earned purely from guessing the storyteller's card (or the
+// flat "everyone/no one guessed" bonus) - excludes the separate +1-per-vote
+// bonus a player's own decoy card can earn, which isn't tied to any hand.
+function guessBonusFor(playerId: string, result: RoundResult): number {
+  if (result.everyoneOrNoOneCorrect) return 2;
+  const guessedRight = result.votes.some(
+    (v) => v.playerId === playerId && v.votedCardId === result.storytellerCardId
+  );
+  return guessedRight ? 3 : 0;
+}
+
 export default function GameBoard({
   room,
   viewerId,
@@ -452,9 +463,9 @@ function RevealPhase({
           const owner = room.players.find((p) => p.id === r.ownerId);
           const isStorytellerCard = r.cardId === result.storytellerCardId;
           const voterIds = votesByCard.get(r.cardId) ?? [];
-          const delta = result.scoreDeltas[r.ownerId] ?? 0;
           const ownerColor = owner ? getPlayerColor(owner.colorIndex) : null;
           const emphasize = isStorytellerCard && scoreRevealed;
+          const storytellerBonus = isStorytellerCard ? (result.scoreDeltas[r.ownerId] ?? 0) : 0;
           return (
             <div
               key={r.cardId}
@@ -473,35 +484,51 @@ function RevealPhase({
                     cardId={r.cardId}
                     size="md"
                     accentColor={ownerColor?.hex}
-                    badge={isStorytellerCard ? "👑" : undefined}
+                    badge={
+                      isStorytellerCard ? (
+                        <>
+                          👑
+                          {scoreRevealed && (
+                            <span
+                              className="ml-0.5 text-emerald-300"
+                              style={{ animation: "score-rise 450ms ease-out both" }}
+                            >
+                              +{storytellerBonus}
+                            </span>
+                          )}
+                        </>
+                      ) : undefined
+                    }
                   />
                 </div>
                 {pointRevealed && voterIds.length > 0 && (
                   <div
-                    className="absolute left-1/2 flex justify-center"
-                    style={{ bottom: "-30px", animation: "point-in 450ms ease-out both" }}
+                    className="absolute left-1/2 flex flex-wrap items-center justify-center gap-x-0.5 gap-y-1"
+                    style={{ bottom: "-30px", width: "max-content", animation: "point-in 450ms ease-out both" }}
                   >
                     {voterIds.map((voterId) => {
                       const voter = room.players.find((p) => p.id === voterId);
                       if (!voter) return null;
                       const vc = getPlayerColor(voter.colorIndex);
+                      const bonus = guessBonusFor(voterId, result);
+                      const compact = voterIds.length > 1;
                       return (
-                        <PointingHand
-                          key={voterId}
-                          color={vc.hex}
-                          className={voterIds.length > 1 ? "w-9 md:w-12 -mx-1.5" : "w-12 md:w-16"}
-                        />
+                        <span key={voterId} className="flex items-center">
+                          <PointingHand color={vc.hex} className={compact ? "w-7 md:w-10" : "w-12 md:w-16"} />
+                          {scoreRevealed && bonus > 0 && (
+                            <span
+                              className={`font-mono font-black text-emerald-300 drop-shadow ${
+                                compact ? "text-sm md:text-base" : "text-base md:text-lg"
+                              }`}
+                              style={{ animation: "score-rise 450ms ease-out both" }}
+                            >
+                              +{bonus}
+                            </span>
+                          )}
+                        </span>
                       );
                     })}
                   </div>
-                )}
-                {scoreRevealed && (
-                  <span
-                    className="absolute -right-3 bottom-2 text-lg font-mono font-black text-emerald-300 drop-shadow md:text-xl"
-                    style={{ animation: "score-rise 450ms ease-out both" }}
-                  >
-                    +{delta}
-                  </span>
                 )}
               </div>
               {owner && <PlayerTag player={owner} />}
