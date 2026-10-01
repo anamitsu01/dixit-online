@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Card from "./Card";
 import Hand from "./Hand";
 import PlayerTag from "./PlayerTag";
 import DealingHand from "./DealingHand";
+import PointingHand from "./PointingHand";
 import { getPlayerColor } from "@/lib/playerColors";
 import type { CardId, Player, RoomState, RoundResult } from "@/lib/types";
 
@@ -346,6 +347,16 @@ function VotePhase({
   );
 }
 
+// Reveal sequence timing: ① hands point at every card simultaneously, held
+// for a beat → ② a "結果発表" cut-in flashes center-screen → ③ the
+// storyteller's card is emphasized and every card's score pops up next to
+// its pointing hand. Only then does the interactive summary/next-round view
+// settle in.
+type RevealStage = "point" | "cutin" | "score" | "done";
+const POINT_HOLD_MS = 900;
+const CUTIN_DURATION_MS = 700;
+const SCORE_HOLD_MS = 900;
+
 function RevealPhase({
   room,
   viewerId,
@@ -357,8 +368,18 @@ function RevealPhase({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stage, setStage] = useState<RevealStage>("point");
   const result = room.lastRoundResult;
   const me = room.players.find((p) => p.id === viewerId);
+
+  useEffect(() => {
+    const timers = [
+      setTimeout(() => setStage("cutin"), POINT_HOLD_MS),
+      setTimeout(() => setStage("score"), POINT_HOLD_MS + CUTIN_DURATION_MS),
+      setTimeout(() => setStage("done"), POINT_HOLD_MS + CUTIN_DURATION_MS + SCORE_HOLD_MS),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, []);
 
   const votesByCard = useMemo(() => {
     if (!result) return new Map<CardId, string[]>();
@@ -387,95 +408,140 @@ function RevealPhase({
     setError(err);
   }
 
+  const scoreRevealed = stage === "score" || stage === "done";
+  const settled = stage === "done";
+
   return (
     <div className="w-full text-center">
       <h2 className="text-2xl font-black text-amber-300 mb-2">結果発表</h2>
 
-      <div className="mx-auto mb-6 max-w-md rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm">
-        {correctPlayers.length > 0 && (
-          <div className="mb-1 flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
-            <span className="text-emerald-300">正解 ✓</span>
-            {correctPlayers.map((p) => (
-              <PlayerTag key={p.id} player={p} size="sm" />
-            ))}
-          </div>
-        )}
-        {incorrectPlayers.length > 0 && (
-          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
-            <span className="text-white/50">不正解 ✗</span>
-            {incorrectPlayers.map((p) => (
-              <PlayerTag key={p.id} player={p} size="sm" />
-            ))}
-          </div>
-        )}
-        <p className="mt-2 text-white/60">
-          {result.everyoneOrNoOneCorrect
-            ? "全員正解 or 全員不正解 → 語り手は0点、他の全員に+2点"
-            : "正解者がいたので語り手と正解者に+3点"}
-        </p>
-      </div>
+      {settled && (
+        <div className="mx-auto mb-6 max-w-md rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm">
+          {correctPlayers.length > 0 && (
+            <div className="mb-1 flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+              <span className="text-emerald-300">正解 ✓</span>
+              {correctPlayers.map((p) => (
+                <PlayerTag key={p.id} player={p} size="sm" />
+              ))}
+            </div>
+          )}
+          {incorrectPlayers.length > 0 && (
+            <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+              <span className="text-white/50">不正解 ✗</span>
+              {incorrectPlayers.map((p) => (
+                <PlayerTag key={p.id} player={p} size="sm" />
+              ))}
+            </div>
+          )}
+          <p className="mt-2 text-white/60">
+            {result.everyoneOrNoOneCorrect
+              ? "全員正解 or 全員不正解 → 語り手は0点、他の全員に+2点"
+              : "正解者がいたので語り手と正解者に+3点"}
+          </p>
+        </div>
+      )}
 
-      <div className="flex flex-wrap justify-center gap-4">
+      <div className="flex flex-wrap justify-center gap-x-4 gap-y-10 px-4">
         {result.revealed.map((r) => {
           const owner = room.players.find((p) => p.id === r.ownerId);
           const isStorytellerCard = r.cardId === result.storytellerCardId;
           const voterIds = votesByCard.get(r.cardId) ?? [];
           const delta = result.scoreDeltas[r.ownerId] ?? 0;
           const ownerColor = owner ? getPlayerColor(owner.colorIndex) : null;
+          const emphasize = isStorytellerCard && scoreRevealed;
           return (
             <div
               key={r.cardId}
               className="flex flex-col items-center gap-2 rounded-xl p-3"
               style={ownerColor ? { backgroundColor: ownerColor.bg } : undefined}
             >
-              <Card
-                cardId={r.cardId}
-                size="md"
-                accentColor={ownerColor?.hex}
-                badge={isStorytellerCard ? "👑" : undefined}
-              />
-              {owner && <PlayerTag player={owner} />}
-              <div className="flex max-w-[160px] flex-wrap justify-center gap-1">
-                {voterIds.length > 0 ? (
-                  voterIds.map((voterId) => {
-                    const voter = room.players.find((p) => p.id === voterId);
-                    if (!voter) return null;
-                    const vc = getPlayerColor(voter.colorIndex);
-                    return (
-                      <span
-                        key={voterId}
-                        className="rounded-full px-2 py-0.5 text-[11px] font-medium"
-                        style={{ backgroundColor: vc.bg, color: vc.hex }}
-                      >
-                        {voter.name}
-                        {isStorytellerCard ? " ✓" : ""}
-                      </span>
-                    );
-                  })
-                ) : (
-                  <span className="text-[11px] text-white/30">投票なし</span>
+              <div
+                className="relative transition-transform duration-300 ease-out"
+                style={{ transform: emphasize ? "scale(1.08)" : "scale(1)" }}
+              >
+                <div
+                  className="rounded-xl"
+                  style={emphasize ? { animation: "glow-pulse 1.4s ease-in-out infinite" } : undefined}
+                >
+                  <Card
+                    cardId={r.cardId}
+                    size="md"
+                    accentColor={ownerColor?.hex}
+                    badge={isStorytellerCard ? "👑" : undefined}
+                  />
+                </div>
+                {ownerColor && (
+                  <PointingHand
+                    color={ownerColor.hex}
+                    className="absolute left-1/2 w-12 md:w-16"
+                    style={{ bottom: "-30px", animation: "point-in 450ms ease-out both" }}
+                  />
+                )}
+                {scoreRevealed && (
+                  <span
+                    className="absolute -right-3 bottom-2 text-lg font-mono font-black text-emerald-300 drop-shadow md:text-xl"
+                    style={{ animation: "score-rise 450ms ease-out both" }}
+                  >
+                    +{delta}
+                  </span>
                 )}
               </div>
-              <span className="text-sm font-mono font-bold text-emerald-300">+{delta}</span>
+              {owner && <PlayerTag player={owner} />}
+              {settled && (
+                <div className="flex max-w-[160px] flex-wrap justify-center gap-1">
+                  {voterIds.length > 0 ? (
+                    voterIds.map((voterId) => {
+                      const voter = room.players.find((p) => p.id === voterId);
+                      if (!voter) return null;
+                      const vc = getPlayerColor(voter.colorIndex);
+                      return (
+                        <span
+                          key={voterId}
+                          className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                          style={{ backgroundColor: vc.bg, color: vc.hex }}
+                        >
+                          {voter.name}
+                          {isStorytellerCard ? " ✓" : ""}
+                        </span>
+                      );
+                    })
+                  ) : (
+                    <span className="text-[11px] text-white/30">投票なし</span>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
       </div>
 
-      <div className="mt-8">
-        {me?.isHost ? (
-          <button
-            onClick={handleNext}
-            disabled={busy}
-            className="rounded-full bg-amber-400 hover:bg-amber-300 disabled:opacity-40 px-8 py-3 font-bold text-black"
+      {settled && (
+        <div className="mt-8">
+          {me?.isHost ? (
+            <button
+              onClick={handleNext}
+              disabled={busy}
+              className="rounded-full bg-amber-400 hover:bg-amber-300 disabled:opacity-40 px-8 py-3 font-bold text-black"
+            >
+              {busy ? "進行中..." : "次のラウンドへ"}
+            </button>
+          ) : (
+            <p className="text-white/60">ホストが次のラウンドに進めるのを待っています…</p>
+          )}
+          {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
+        </div>
+      )}
+
+      {stage === "cutin" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <span
+            className="text-5xl font-black tracking-widest text-amber-300 drop-shadow-[0_0_20px_rgba(252,211,77,0.6)] md:text-7xl"
+            style={{ animation: `cutin-pop ${CUTIN_DURATION_MS}ms ease-out both` }}
           >
-            {busy ? "進行中..." : "次のラウンドへ"}
-          </button>
-        ) : (
-          <p className="text-white/60">ホストが次のラウンドに進めるのを待っています…</p>
-        )}
-        {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
-      </div>
+            結果発表
+          </span>
+        </div>
+      )}
     </div>
   );
 }
