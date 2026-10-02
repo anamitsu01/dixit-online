@@ -476,7 +476,7 @@ function RevealPhase({
               style={ownerColor ? { backgroundColor: ownerColor.bg } : undefined}
             >
               <div
-                className="relative transition-transform duration-300 ease-out"
+                className="relative z-20 transition-transform duration-300 ease-out"
                 style={{ transform: emphasize ? "scale(1.08)" : "scale(1)" }}
               >
                 <div
