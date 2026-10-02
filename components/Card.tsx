@@ -128,19 +128,35 @@ export function CardFace({ cardId }: { cardId: CardId }) {
   );
 }
 
+const LOGO_LETTERS: { char: string; color: string }[] = [
+  { char: "D", color: "#ff4f87" },
+  { char: "i", color: "#ff9f1c" },
+  { char: "x", color: "#1fb89a" },
+  { char: "i", color: "#3b82f6" },
+  { char: "t", color: "#9b5de5" },
+];
+const LOGO_UNDERLINE_COLORS = ["#ff4f87", "#ff9f1c", "#1fb89a", "#3b82f6"];
+
 export function CardBack() {
   return (
     <svg viewBox="0 0 100 140" className="h-full w-full" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="cardback" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#1e1b4b" />
-          <stop offset="100%" stopColor="#4c1d95" />
-        </linearGradient>
-      </defs>
-      <rect width="100" height="140" fill="url(#cardback)" />
-      <rect x="8" y="8" width="84" height="124" rx="8" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.5" />
-      <circle cx="50" cy="70" r="18" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" />
-      <circle cx="50" cy="70" r="6" fill="rgba(255,255,255,0.5)" />
+      <rect width="100" height="140" fill="#ffffff" />
+      <rect x="6" y="6" width="88" height="128" rx="4" fill="none" stroke="#c9c9e6" strokeWidth="1" />
+      <text
+        x="50"
+        y="82"
+        textAnchor="middle"
+        style={{ fontFamily: "var(--font-baloo), sans-serif", fontWeight: 700, fontSize: 32 }}
+      >
+        {LOGO_LETTERS.map((l, i) => (
+          <tspan key={i} fill={l.color}>
+            {l.char}
+          </tspan>
+        ))}
+      </text>
+      {LOGO_UNDERLINE_COLORS.map((color, i) => (
+        <rect key={i} x={30 + i * 12} y="94" width="8" height="4" rx="2" fill={color} />
+      ))}
     </svg>
   );
 }
