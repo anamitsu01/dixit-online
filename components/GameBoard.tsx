@@ -488,30 +488,19 @@ function RevealPhase({
                     size="md"
                     accentColor={ownerColor?.hex}
                     badge={
-                      isStorytellerCard ? (
+                      owner ? (
                         <>
-                          👑
-                          {scoreRevealed && (
+                          <span className="truncate px-1 font-semibold" style={{ color: ownerColor?.hex }}>
+                            {owner.name}
+                          </span>
+                          {scoreRevealed && (isStorytellerCard || baitBonus > 0) && (
                             <span
-                              className="ml-0.5 text-emerald-300"
+                              className="mr-1 shrink-0 text-emerald-300"
                               style={{ animation: "score-rise 450ms ease-out both" }}
                             >
-                              +{storytellerBonus}
+                              +{isStorytellerCard ? storytellerBonus : baitBonus}
                             </span>
                           )}
-                        </>
-                      ) : scoreRevealed && baitBonus > 0 ? (
-                        <>
-                          <span
-                            className="inline-block h-2.5 w-2.5 rounded-full md:h-3 md:w-3"
-                            style={{ backgroundColor: ownerColor?.hex }}
-                          />
-                          <span
-                            className="ml-1 text-emerald-300"
-                            style={{ animation: "score-rise 450ms ease-out both" }}
-                          >
-                            +{baitBonus}
-                          </span>
                         </>
                       ) : undefined
                     }
@@ -529,11 +518,17 @@ function RevealPhase({
                       const bonus = guessBonusFor(voterId, result);
                       const compact = voterIds.length > 1;
                       return (
-                        <span key={voterId} className="flex items-center">
+                        <span key={voterId} className="relative flex items-center">
                           <PointingHand
                             color={vc.hex}
-                            className={`opacity-80 ${compact ? "w-7 md:w-10" : "w-12 md:w-16"}`}
+                            className={compact ? "w-7 md:w-10" : "w-12 md:w-16"}
                           />
+                          <span
+                            className="absolute left-1/2 top-full -mt-1 max-w-[3.5rem] -translate-x-1/2 truncate whitespace-nowrap rounded-full bg-[#0b0714]/80 px-1.5 py-0.5 text-[10px] font-semibold md:max-w-[5rem] md:text-[11px]"
+                            style={{ color: vc.hex }}
+                          >
+                            {voter.name}
+                          </span>
                           {scoreRevealed && bonus > 0 && (
                             <span
                               className={`font-mono font-black text-emerald-300 drop-shadow ${
@@ -550,33 +545,8 @@ function RevealPhase({
                   </div>
                 )}
               </div>
-              {owner && (
-                <div className="relative z-10 rounded-full bg-[#0b0714]/70 px-2 py-0.5">
-                  <PlayerTag player={owner} />
-                </div>
-              )}
-              {settled && (
-                <div className="flex max-w-[160px] flex-wrap justify-center gap-1">
-                  {voterIds.length > 0 ? (
-                    voterIds.map((voterId) => {
-                      const voter = room.players.find((p) => p.id === voterId);
-                      if (!voter) return null;
-                      const vc = getPlayerColor(voter.colorIndex);
-                      return (
-                        <span
-                          key={voterId}
-                          className="rounded-full px-2 py-0.5 text-[11px] font-medium"
-                          style={{ backgroundColor: vc.bg, color: vc.hex }}
-                        >
-                          {voter.name}
-                          {isStorytellerCard ? " ✓" : ""}
-                        </span>
-                      );
-                    })
-                  ) : (
-                    <span className="text-[11px] text-white/30">投票なし</span>
-                  )}
-                </div>
+              {settled && voterIds.length === 0 && (
+                <span className="mt-2 text-[11px] text-white/30">投票なし</span>
               )}
             </div>
           );

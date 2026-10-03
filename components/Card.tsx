@@ -82,7 +82,7 @@ export default function Card({
         <CardFace cardId={cardId} />
       )}
       {badge !== undefined && (
-        <span className="absolute top-1 left-1 flex h-6 min-w-6 items-center justify-center rounded-full bg-black/70 px-1 text-xs font-bold text-white md:top-2 md:left-2 md:h-8 md:min-w-8 md:text-sm">
+        <span className="absolute top-1 left-1 flex h-6 min-w-6 max-w-[calc(100%-0.75rem)] items-center justify-center rounded-full bg-black/70 px-1 text-xs font-bold text-white md:top-2 md:left-2 md:h-8 md:min-w-8 md:text-sm">
           {badge}
         </span>
       )}
