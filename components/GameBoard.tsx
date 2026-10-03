@@ -363,11 +363,35 @@ function VotePhase({
 // card simultaneously, held for a beat → ④ the storyteller's card is
 // emphasized and every card's score pops up next to its pointing hand. Only
 // then does the interactive summary/next-round view settle in.
-type RevealStage = "cutin" | "gap" | "point" | "score" | "done";
+//
+// If this round pushed someone to the winning score, the sequence continues
+// after "done": a "決着！" cut-in flows across, then (0.7s later) the
+// winner(s) are highlighted and the next-round button appears.
+type RevealStage =
+  | "cutin"
+  | "gap"
+  | "point"
+  | "score"
+  | "done"
+  | "finale-cutin"
+  | "finale-gap"
+  | "finale";
+const STAGE_ORDER: RevealStage[] = [
+  "cutin",
+  "gap",
+  "point",
+  "score",
+  "done",
+  "finale-cutin",
+  "finale-gap",
+  "finale",
+];
 const CUTIN_DURATION_MS = 900;
 const GAP_AFTER_CUTIN_MS = 700;
 const POINT_HOLD_MS = 900;
 const SCORE_HOLD_MS = 900;
+const FINALE_PAUSE_MS = 900;
+const CONFETTI_COLORS = ["#ff4f87", "#ff9f1c", "#ffd166", "#1fb89a", "#3b82f6", "#9b5de5"];
 
 function RevealPhase({
   room,
@@ -388,11 +412,17 @@ function RevealPhase({
     const pointAt = CUTIN_DURATION_MS + GAP_AFTER_CUTIN_MS;
     const scoreAt = pointAt + POINT_HOLD_MS;
     const doneAt = scoreAt + SCORE_HOLD_MS;
+    const finaleCutinAt = doneAt + FINALE_PAUSE_MS;
+    const finaleGapAt = finaleCutinAt + CUTIN_DURATION_MS;
+    const finaleAt = finaleGapAt + GAP_AFTER_CUTIN_MS;
     const timers = [
       setTimeout(() => setStage("gap"), CUTIN_DURATION_MS),
       setTimeout(() => setStage("point"), pointAt),
       setTimeout(() => setStage("score"), scoreAt),
       setTimeout(() => setStage("done"), doneAt),
+      setTimeout(() => setStage("finale-cutin"), finaleCutinAt),
+      setTimeout(() => setStage("finale-gap"), finaleGapAt),
+      setTimeout(() => setStage("finale"), finaleAt),
     ];
     return () => timers.forEach(clearTimeout);
   }, []);
@@ -424,13 +454,43 @@ function RevealPhase({
     setError(err);
   }
 
-  const pointRevealed = stage === "point" || stage === "score" || stage === "done";
-  const scoreRevealed = stage === "score" || stage === "done";
-  const settled = stage === "done";
+  const reached = (target: RevealStage) =>
+    STAGE_ORDER.indexOf(stage) >= STAGE_ORDER.indexOf(target);
+  const pointRevealed = reached("point");
+  const scoreRevealed = reached("score");
+  const settled = reached("done");
+
+  // Game over once someone hits the winning score (same rule as nextRound()).
+  const topScore = Math.max(...room.players.map((p) => p.score));
+  const gameEnding = topScore >= room.maxScore;
+  const winners = gameEnding ? room.players.filter((p) => p.score === topScore) : [];
+  const showNext = settled && (!gameEnding || stage === "finale");
 
   return (
     <div className="w-full text-center">
       <h2 className="text-2xl font-black text-amber-300 mb-2">結果発表</h2>
+
+      {gameEnding && stage === "finale" && (
+        <div
+          ref={(el) => el?.scrollIntoView({ behavior: "smooth", block: "center" })}
+          className="mx-auto mb-6 max-w-md rounded-2xl border-2 border-amber-300 bg-amber-300/10 px-6 py-4"
+          style={{ animation: "winner-pop 700ms ease-out both, glow-pulse 1.4s ease-in-out 700ms infinite" }}
+        >
+          <p className="text-sm font-bold tracking-widest text-amber-200">🏆 優勝 🏆</p>
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+            {winners.map((w) => (
+              <span
+                key={w.id}
+                className="text-3xl font-black md:text-4xl"
+                style={{ color: getPlayerColor(w.colorIndex).hex }}
+              >
+                👑 {w.name}
+              </span>
+            ))}
+          </div>
+          <p className="mt-1 text-sm text-white/60">{topScore}点</p>
+        </div>
+      )}
 
       {settled && (
         <div className="mx-auto mb-6 max-w-md rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm">
@@ -554,7 +614,7 @@ function RevealPhase({
         })}
       </div>
 
-      {settled && (
+      {showNext && (
         <div className="mt-8">
           {me?.isHost ? (
             <button
@@ -580,6 +640,35 @@ function RevealPhase({
             結果発表
           </span>
         </div>
+      )}
+
+      {gameEnding && stage === "finale-cutin" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/50">
+          <span
+            className="whitespace-nowrap text-6xl font-black tracking-widest text-rose-400 drop-shadow-[0_0_24px_rgba(251,113,133,0.7)] md:text-8xl"
+            style={{ animation: `cutin-flow ${CUTIN_DURATION_MS}ms ease-in-out both` }}
+          >
+            決着！
+          </span>
+        </div>
+      )}
+
+      {gameEnding && stage === "finale" && (
+        <>
+          <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden" aria-hidden="true">
+            {Array.from({ length: 28 }).map((_, i) => (
+              <span
+                key={i}
+                className="absolute top-0 block h-3 w-2 rounded-sm"
+                style={{
+                  left: `${(i * 37) % 100}%`,
+                  backgroundColor: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+                  animation: `confetti-fall ${2.6 + (i % 5) * 0.4}s linear ${((i * 13) % 15) / 10}s both`,
+                }}
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
