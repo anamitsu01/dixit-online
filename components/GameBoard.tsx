@@ -391,6 +391,8 @@ const GAP_AFTER_CUTIN_MS = 700;
 const POINT_HOLD_MS = 900;
 const SCORE_HOLD_MS = 900;
 const FINALE_PAUSE_MS = 900;
+// "決着！": slide in (0.5s), hold at center (0.9s), slide out (0.5s).
+const FINALE_CUTIN_DURATION_MS = 1900;
 const CONFETTI_COLORS = ["#ff4f87", "#ff9f1c", "#ffd166", "#1fb89a", "#3b82f6", "#9b5de5"];
 
 function RevealPhase({
@@ -413,7 +415,7 @@ function RevealPhase({
     const scoreAt = pointAt + POINT_HOLD_MS;
     const doneAt = scoreAt + SCORE_HOLD_MS;
     const finaleCutinAt = doneAt + FINALE_PAUSE_MS;
-    const finaleGapAt = finaleCutinAt + CUTIN_DURATION_MS;
+    const finaleGapAt = finaleCutinAt + FINALE_CUTIN_DURATION_MS;
     const finaleAt = finaleGapAt + GAP_AFTER_CUTIN_MS;
     const timers = [
       setTimeout(() => setStage("gap"), CUTIN_DURATION_MS),
@@ -646,7 +648,7 @@ function RevealPhase({
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/50">
           <span
             className="whitespace-nowrap text-6xl font-black tracking-widest text-rose-400 drop-shadow-[0_0_24px_rgba(251,113,133,0.7)] md:text-8xl"
-            style={{ animation: `cutin-flow ${CUTIN_DURATION_MS}ms ease-in-out both` }}
+            style={{ animation: `finale-flow ${FINALE_CUTIN_DURATION_MS}ms ease-in-out both` }}
           >
             決着！
           </span>

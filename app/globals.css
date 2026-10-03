@@ -102,3 +102,22 @@ body {
     transform: translateY(105vh) rotate(540deg);
   }
 }
+
+@keyframes finale-flow {
+  0% {
+    opacity: 0;
+    transform: translateX(60vw);
+  }
+  26% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  74% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-60vw);
+  }
+}
