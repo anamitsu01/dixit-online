@@ -559,7 +559,7 @@ function RevealPhase({
                           {scoreRevealed && (isStorytellerCard || baitBonus > 0) && (
                             <span
                               className="mr-1 shrink-0 text-emerald-300"
-                              style={{ animation: "score-rise 450ms ease-out both" }}
+                              style={{ animation: "badge-score-rise 450ms ease-out both" }}
                             >
                               +{isStorytellerCard ? storytellerBonus : baitBonus}
                             </span>

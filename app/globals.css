@@ -121,3 +121,20 @@ body {
     transform: translateX(-60vw);
   }
 }
+
+/* In-card badge score: rises from just below its resting spot but never
+   leaves the card (the card clips overflow, so a taller rise vanishes). */
+@keyframes badge-score-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.6);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-1px) scale(1.25);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
