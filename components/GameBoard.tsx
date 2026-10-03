@@ -490,7 +490,8 @@ function RevealPhase({
                     badge={
                       owner ? (
                         <>
-                          <span className="truncate px-1 font-semibold" style={{ color: ownerColor?.hex }}>
+                          <span className="truncate pl-1 pr-1 font-semibold" style={{ color: ownerColor?.hex }}>
+                            {isStorytellerCard && <span className="mr-0.5">👑</span>}
                             {owner.name}
                           </span>
                           {scoreRevealed && (isStorytellerCard || baitBonus > 0) && (
